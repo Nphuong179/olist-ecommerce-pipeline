@@ -7,4 +7,4 @@ SELECT
     "payment_installments" AS payment_installments,
     "payment_value"::DECIMAL(10,2) AS amount -- Clearer name
 
-FROM {{ source("raw", "raw_order_payments")}}
+FROM {{ source("raw", "raw_order_payments") }}

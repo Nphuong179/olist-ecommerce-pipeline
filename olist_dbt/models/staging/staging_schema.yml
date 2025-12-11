@@ -1,0 +1,160 @@
+version: 2
+
+models:
+ - name: stg_customers
+   description: | 
+    Staged customer data with delivery area information of customers. 
+    **Data Quality Note**: The table contains duplicate customer information. For each order, the system creates 
+    a new customer_id (order_customer_id) even though customer's address data hasn't changed.
+
+    - 'customer_id': Represents the actual person (can have multiple orders)
+    - 'order_customer_id': Unique per order, used to join with orders table
+      
+    **For Analysis**: Deduplicates to one row per person in dim_customers
+
+   columns:
+    - name: order_customer_id
+      description: |
+       Key linking to orders table. One per row.
+       Note: Multiple order_customer_ids can map to the same customer_id
+      tests:
+       - not_null
+       - unique
+      
+    - name: customer_id
+      description: |
+       Key representing the actual customer/person.
+      tests:
+       - not_null
+      
+    - name: zip_code_prefix
+      description: |
+       Format: 5-digit numeric string (e.g., 38301, 82200).
+       Represents the customer's delivery area.
+       Note: Full zip code is 8 digits, but only prefix is available for privacy
+      tests: 
+       - not_null
+      
+    - name: city
+      description: "Brazilian city name in lowercase (e.g., curitiba, sao paulo)"
+      tests:
+       - not_null
+        
+    - name: state
+      description: |
+       Brazilian state code
+       Format: 2-letter codes
+       Represents customer's state
+      tests:
+       - not_null
+       - accepted_values:
+          values: ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA',
+                   'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO']
+
+ - name: stg_products
+   description: |
+    Staged product data with listing quality metrics and physical dimensions
+    **Data Privacy Note**: Product names and descriptions are not available in the public dataset to protect commercial information.
+
+   columns:
+    - name: product_id
+      description: "Unique identifier for product"
+      tests: 
+       - not_null
+       - unique
+      
+    - name: category_name_portuguese
+      description: "Category in portuguese"
+      tests:
+       - not_null
+
+    - name: name_length
+      description: |
+       Character count of product name
+       Note: product name is not available for privacy.
+      tests:
+       - not_null
+       - dbt_utils.expression_is_true:
+          expression: ">0"
+          config:
+           severity: warn
+
+    - name: description_length
+      description: |
+       Character count of product description
+       Note: Product description is not available for privacy
+      tests:
+       - not_null
+       - dbt_utils.expression_is_true:
+          expression: ">0"
+          config:
+           severity: warn 
+
+    - name: photo_quantity
+      description: "Number of product photos in the listing"
+      tests:
+       - not_null
+       - dbt_utils.expression_is_true:
+          expression: ">0" # Product must contain at least one photo
+          config:
+           severity: warn
+
+    - name: weight_gram
+      description: "Product weight in gram"
+      tests:
+       - not_null
+       - dbt_utils.expression_is_true:
+          expression: ">0" 
+
+    - name: length_cm
+      description: "Product length in centimeters"
+      tests:
+       - not_null
+       - dbt_utils.expression_is_true:
+          expression: ">0"
+
+    - name: width_cm
+      description: "Product width in centimeters"
+      tests:
+       - not_null
+       - dbt_utils.expression_is_true:
+          expression: ">0"
+
+    - name: height_cm
+      description: "Product height in centimeters"
+      tests:
+       - not_null
+       - dbt_utils.expression_is_true:
+          expression: ">0" 
+
+ - name: stg_sellers
+   description: "Staged seller data with seller's area reference"
+   
+   columns:
+    - name: seller_id
+      description: Unique identifier for seller
+      tests:
+       - not_null
+       - unique
+
+    - name: zip_code_prefix
+      description: |
+       Format: 5-digit numeric string (e.g., 13023, 20031).
+       Represents the seller's area.
+       Note: Full zip code is 8 digits, but only prefix is available for privacy.
+      
+    - name: city
+      description: "Brazilian city name in lowercase (e.g., curitiba, sao paulo)"
+      tests:
+       - not_null
+      
+    - name: state
+      description: |
+       Brazilian state code
+       Format: 2-letter codes
+       Represents seller's state
+      tests:
+       - not_null
+       - accepted_values:
+          values: ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA',
+                   'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO']

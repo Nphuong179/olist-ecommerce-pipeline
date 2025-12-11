@@ -2,7 +2,7 @@
 
 SELECT
     TRIM("order_id") AS order_id,
-    TRIM("customer_id") AS customer_id,
+    TRIM("customer_id") AS order_customer_id, -- Links to customers
     TRIM("order_status") AS order_status,
 
     "order_purchase_timestamp"::TIMESTAMP AS order_purchase_timestamp,
