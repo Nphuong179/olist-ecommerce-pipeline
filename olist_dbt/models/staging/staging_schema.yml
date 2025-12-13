@@ -158,3 +158,81 @@ models:
        - accepted_values:
           values: ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA',
                    'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO']
+    
+ - name: stg_order_items
+   description: |
+    Staged order items data representing individual items within orders
+    One row per item per order. An order can contain multiple items
+    Composite key: (order_id, item_sequence_number)
+
+   tests:
+   # Composite key uniqueness
+    - dbt_utils.unique_combination_of_columns:
+       combination_of_columns:
+        - order_id
+        - item_sequence_number
+
+   columns:
+    - name: order_id
+      description: "Foreign key to orders table"
+      tests:
+       - not_null
+       - relationships:
+          to: ref('stg_orders')
+          field: order_id
+    
+    - name: item_sequence_number
+      description: |
+       Sequential line item number within the order (1, 2, 3,...)
+       Represents the order in which items were added to the cart
+      tests:
+       - not_null
+       - dbt_utils.expression_is_true:
+          expression: ">0"
+          config:
+           severity: warn
+
+    - name: product_id
+      description: "Foreign key to products table"
+      tests:
+       - not_null
+       - relationships:
+          to: ref('stg_products')
+          field: product_id
+
+    - name: seller_id
+      description: "Foreign key to sellers table"
+      tests:
+       - not_null
+       - relationships:
+          to: ref('stg_sellers')
+          field: seller_id
+
+    - name: price
+      description: |
+       Item price in Brazilian Reals (BRL)
+       **Marketplace Pricing:** Same product_id may have difference prices across orders, 
+       reflecting different sellers' pricing strategies. 
+      tests:
+       - not_null
+       - dbt_utils.expression_is_true:
+          expression: ">0"
+          config:
+           severity: warn
+
+    - name: freight_value
+      description: | 
+       Shipping/freight cost in Brazilian Reals (BRL)
+       Can be zero, representing free shipping promotions
+      tests:
+       - not_null
+       - dbt_utils.expression_is_true:
+          expression: "BETWEEN 0 AND 500"
+    
+    - name: shipping_limit_timestamp
+      description: Deadline when seller must ship item to carrier
+      tests:
+       - not_null
+
+
+   
