@@ -83,7 +83,6 @@ SELECT
     
     -- Historical reference
     sp.first_order_date,
-    sp.latest_order_date,
     sp.unique_seller_count,
     sp.total_orders_containing_product,
     sp.total_unit_sold,
@@ -101,10 +100,7 @@ SELECT
         WHEN ppm.price_variation_coefficient > 20 THEN 'moderate_variation'
         WHEN ppm.price_variation_coefficient > 0 THEN 'low_variation'
         ELSE 'fixed_price'
-    END AS price_variation_category,
-
-    -- Updated at 
-    CURRENT_TIMESTAMP AS updated_at
+    END AS price_variation_category
 
 FROM {{ ref('stg_products') }} p
 LEFT JOIN product_metrics pm

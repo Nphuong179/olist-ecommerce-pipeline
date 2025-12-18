@@ -22,7 +22,7 @@ WITH
             zip_code_prefix,
             city,
             state,
-            min(order_purchase_timestamp) as first_seen_date
+            MIN(order_purchase_timestamp) as first_seen_date
         FROM customer_orders
         GROUP BY
             customer_id,
@@ -44,11 +44,11 @@ WITH
         SELECT
             customer_id,
             MIN(order_purchase_timestamp) AS first_order_date,
-            MAX(order_purchase_timestamp) AS last_order_date,
-            COUNT(DISTINCT order_id) AS order_count
+            MAX(order_purchase_timestamp) AS last_order_date
         FROM customer_orders
         ORDER BY customer_id
     )
+    
 -- Final dimension with validity periods and customer metrics 
 SELECT
     {{ dbt.dbt_utils.dbt_utils.generate_surrogate_key(['cah.customer_id','cah.address_sequence']) }} AS customer_key,
@@ -73,7 +73,6 @@ SELECT
     -- Customer metrics
     cm.first_order_date,
     cm.last_order_date,
-    cm.order_count,
 
     -- Validity periods
     cah.first_seen_date AS valid_from,
