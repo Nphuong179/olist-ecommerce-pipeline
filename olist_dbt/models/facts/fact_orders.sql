@@ -30,15 +30,12 @@ WITH
     ),
 
 SELECT
+    -- Order identifiers
     so.order_id,
     so.order_status,
     
     --Foreign key to customers table (using surrogate key)
     c.customer_key,
-
-    -- Degenerate dimensions
-    so.order_id,
-    so.order_status,
 
     -- Datetime attributes
     so.order_purchase_timestamp,
@@ -111,7 +108,7 @@ FROM {{ ref("stg_orders")}} so
 LEFT JOIN {{ ref("stg_customers") }} sc
     ON so.order_customer_id = sc.order_customer_id
 
--- Join dim_customers to replace order_customer_id by customer_key
+-- Join dim_customers to replace natural key by surrogate key
 LEFT JOIN {{ ref("dim_customers") }} c
     ON sc.customer_id = c.customer_id
     AND so.order_purchase_timestamp >= c.valid_from

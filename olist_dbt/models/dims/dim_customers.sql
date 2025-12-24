@@ -46,12 +46,12 @@ WITH
             MIN(order_purchase_timestamp) AS first_order_date,
             MAX(order_purchase_timestamp) AS last_order_date
         FROM customer_orders
-        ORDER BY customer_id
+        GROUP BY customer_id
     )
     
 -- Final dimension with validity periods and customer metrics 
 SELECT
-    {{ dbt.dbt_utils.dbt_utils.generate_surrogate_key(['cah.customer_id','cah.address_sequence']) }} AS customer_key,
+    {{ dbt_utils.generate_surrogate_key(['cah.customer_id','cah.address_sequence']) }} AS customer_key,
 
     -- Customer identifiers
     cah.customer_id,
@@ -63,11 +63,11 @@ SELECT
     
     -- Geographic classification
     CASE 
-        WHEN cah.state IN ('SP', 'RJ', 'MG', 'ES') THEN 'Southeast'
-        WHEN cah.state IN ('RS', 'SC', 'PR') THEN 'South'
-        WHEN cah.state IN ('BA', 'SE', 'AL', 'PE', 'PB', 'RN', 'CE', 'PI', 'MA') THEN 'Northeast'
-        WHEN cah.state IN ('GO', 'MT', 'MS', 'DF') THEN 'Central-West'
-        WHEN cah.state IN ('AM', 'RR', 'AP', 'PA', 'TO', 'RO', 'AC') THEN 'North'
+        WHEN cah.state IN ('SP', 'RJ', 'MG', 'ES') THEN 'southeast'
+        WHEN cah.state IN ('RS', 'SC', 'PR') THEN 'south'
+        WHEN cah.state IN ('BA', 'SE', 'AL', 'PE', 'PB', 'RN', 'CE', 'PI', 'MA') THEN 'northeast'
+        WHEN cah.state IN ('GO', 'MT', 'MS', 'DF') THEN 'central_west'
+        WHEN cah.state IN ('AM', 'RR', 'AP', 'PA', 'TO', 'RO', 'AC') THEN 'north'
     END AS region,
 
     -- Customer metrics

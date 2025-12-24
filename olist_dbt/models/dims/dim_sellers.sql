@@ -47,7 +47,7 @@ WITH
             MIN(order_purchase_timestamp) AS first_order_date,
             MAX(order_purchase_timestamp) AS last_order_date
         FROM seller_orders
-        ORDER BY seller_id
+        GROUP BY seller_id
     )
 
     -- Final dimension with validity periods and seller metrics
@@ -64,11 +64,11 @@ SELECT
 
     -- Geographic classification
     CASE 
-        WHEN sah.state IN ('SP', 'RJ', 'MG', 'ES') THEN 'Southeast'
-        WHEN sah.state IN ('RS', 'SC', 'PR') THEN 'South'
-        WHEN sah.state IN ('BA', 'SE', 'AL', 'PE', 'PB', 'RN', 'CE', 'PI', 'MA') THEN 'Northeast'
-        WHEN sah.state IN ('GO', 'MT', 'MS', 'DF') THEN 'Central-West'
-        WHEN sah.state IN ('AM', 'RR', 'AP', 'PA', 'TO', 'RO', 'AC') THEN 'North'
+        WHEN sah.state IN ('SP', 'RJ', 'MG', 'ES') THEN 'southeast'
+        WHEN sah.state IN ('RS', 'SC', 'PR') THEN 'south'
+        WHEN sah.state IN ('BA', 'SE', 'AL', 'PE', 'PB', 'RN', 'CE', 'PI', 'MA') THEN 'northeast'
+        WHEN sah.state IN ('GO', 'MT', 'MS', 'DF') THEN 'central_west'
+        WHEN sah.state IN ('AM', 'RR', 'AP', 'PA', 'TO', 'RO', 'AC') THEN 'north'
     END AS region,
 
     -- Seller_metrics
@@ -77,7 +77,7 @@ SELECT
 
     -- Validity periods
     sah.first_seen_date AS valid_from,
-    COALESCE(sah.next_address_date, CAST('9999-12-31' AS DATE)) AS valid_to,
+    COALESCE(sah.next_address_date, CAST('9999-12-31 23:59:59' AS TIMESTAMP)) AS valid_to,
     CASE 
         WHEN next_address_date IS NULL THEN TRUE
         ELSE FALSE
