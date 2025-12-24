@@ -9,7 +9,7 @@ WITH
             o.order_purchase_timestamp
         FROM {{ ref("stg_products") }} p
         LEFT JOIN {{ ref("stg_order_items")}} oi
-            ON r.product_id = oi.product_id
+            ON p.product_id = oi.product_id
         LEFT JOIN {{ ref("stg_orders") }} o
             ON oi.order_id = o.order_id
     ),
@@ -67,8 +67,8 @@ SELECT
         ELSE 'light'
     END AS weight_category,
     CASE
-        WHEN (p.length_cm * p.width_cm * p.height_cm) > 100000 then 'large',
-        WHEN (p.length_cm * p.width_cm * p.height_cm) > 10000 then 'medium',
+        WHEN (p.length_cm * p.width_cm * p.height_cm) > 100000 THEN 'large',
+        WHEN (p.length_cm * p.width_cm * p.height_cm) > 10000 THEN 'medium',
         ELSE 'small'
     END AS size_category,
 
@@ -82,10 +82,10 @@ SELECT
     END AS has_complete_listing,
     
     -- Historical reference
-    sp.first_order_date,
-    sp.unique_seller_count,
-    sp.total_orders_containing_product,
-    sp.total_unit_sold,
+    pm.first_order_date,
+    pm.unique_seller_count,
+    pm.total_orders_containing_product,
+    pm.total_unit_sold,
 
     -- Price metrics
     ppm.min_price,
@@ -104,8 +104,8 @@ SELECT
 
 FROM {{ ref('stg_products') }} p
 LEFT JOIN product_metrics pm
-    ON sp.product_id = pm.product_id
+    ON p.product_id = pm.product_id
 LEFT JOIN product_price_metrics ppm
     ON p.product_id = ppm.product_id
 LEFT JOIN {{ ref("stg_product_category_translation") }} pct
-    ON sp.category_name_portuguese = pct.category_name_portuguese
+    ON p.category_name_portuguese = pct.category_name_portuguese
