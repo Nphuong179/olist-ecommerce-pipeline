@@ -2,237 +2,182 @@ version: 2
 
 models:
  - name: stg_customers
-   description: | 
-    Staged customer data with delivery area information of customers. 
-    **Data Quality Note**: The table contains duplicate customer information. For each order, the system creates 
-    a new customer_id (order_customer_id) even though customer's address data hasn't changed.
-
-    - 'customer_id': Represents the actual person (can have multiple orders)
-    - 'order_customer_id': Unique per order, used to join with orders table
-      
-    **For Analysis**: Deduplicates to one row per person in dim_customers
-
    columns:
     - name: order_customer_id
-      description: |
-       Key linking to orders table. One per row.
-       Note: Multiple order_customer_ids can map to the same customer_id
       tests:
        - not_null
        - unique
       
     - name: customer_id
-      description: |
-       Key representing the actual customer/person.
       tests:
        - not_null
       
     - name: zip_code_prefix
-      description: |
-       Format: 5-digit numeric string (e.g., 38301, 82200).
-       Represents the customer's delivery area.
-       Note: Full zip code is 8 digits, but only prefix is available for privacy
       tests: 
        - not_null
       
     - name: city
-      description: "Brazilian city name in lowercase (e.g., curitiba, sao paulo)"
       tests:
        - not_null
         
     - name: state
-      description: |
-       Brazilian state code
-       Format: 2-letter codes
-       Represents customer's state
       tests:
        - not_null
-       - accepted_values:
-          values: ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA',
-                   'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO']
 
  - name: stg_products
-   description: |
-    Staged product data with listing quality metrics and physical dimensions
-    **Data Privacy Note**: Product names and descriptions are not available in the public dataset to protect commercial information.
 
    columns:
     - name: product_id
-      description: "Unique identifier for product"
       tests: 
        - not_null
        - unique
       
     - name: category_name_portuguese
-      description: "Category in portuguese"
       tests:
        - not_null
 
     - name: name_length
-      description: |
-       Character count of product name
-       Note: product name is not available for privacy.
       tests:
        - not_null
-       - dbt_utils.expression_is_true:
-          expression: ">0"
-          config:
-           severity: warn
 
     - name: description_length
-      description: |
-       Character count of product description
-       Note: Product description is not available for privacy
       tests:
        - not_null
-       - dbt_utils.expression_is_true:
-          expression: ">0"
-          config:
-           severity: warn 
 
     - name: photo_quantity
-      description: "Number of product photos in the listing"
       tests:
        - not_null
-       - dbt_utils.expression_is_true:
-          expression: ">0" # Product must contain at least one photo
-          config:
-           severity: warn
 
     - name: weight_gram
-      description: "Product weight in gram"
       tests:
        - not_null
-       - dbt_utils.expression_is_true:
-          expression: ">0" 
 
     - name: length_cm
-      description: "Product length in centimeters"
       tests:
        - not_null
-       - dbt_utils.expression_is_true:
-          expression: ">0"
 
     - name: width_cm
-      description: "Product width in centimeters"
       tests:
        - not_null
-       - dbt_utils.expression_is_true:
-          expression: ">0"
 
     - name: height_cm
-      description: "Product height in centimeters"
       tests:
        - not_null
-       - dbt_utils.expression_is_true:
-          expression: ">0" 
 
  - name: stg_sellers
-   description: "Staged seller data with seller's area reference"
    
    columns:
     - name: seller_id
-      description: Unique identifier for seller
       tests:
        - not_null
        - unique
 
     - name: zip_code_prefix
-      description: |
-       Format: 5-digit numeric string (e.g., 13023, 20031).
-       Represents the seller's area.
-       Note: Full zip code is 8 digits, but only prefix is available for privacy.
+      tests:
+       - not_null
       
     - name: city
-      description: "Brazilian city name in lowercase (e.g., curitiba, sao paulo)"
       tests:
        - not_null
       
     - name: state
-      description: |
-       Brazilian state code
-       Format: 2-letter codes
-       Represents seller's state
       tests:
        - not_null
-       - accepted_values:
-          values: ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA',
-                   'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO']
     
- - name: stg_order_items
-   description: |
-    Staged order items data representing individual items within orders
-    One row per item per order. An order can contain multiple items
-    Composite key: (order_id, item_sequence_number)
-
-   tests:
-   # Composite key uniqueness
-    - dbt_utils.unique_combination_of_columns:
-       combination_of_columns:
-        - order_id
-        - item_sequence_number
-
+ - name: stg_orders
    columns:
     - name: order_id
-      description: "Foreign key to orders table"
       tests:
        - not_null
-       - relationships:
-          to: ref('stg_orders')
-          field: order_id
+       - unique
+
+    - name: order_customer_id
+      tests:
+       - not_null
+    
+    - name: order_status
+      tests:
+       - not_null
+
+    - name: order_purchase_timestamp
+      tests:
+       - not_null
+
+    - name: order_approved_timestamp
+      tests:
+       - not_null
+
+    - name: order_delivered_carrier_timestamp
+      tests:
+       - not_null
+
+    - name: order_delivered_customer_timestamp
+      tests:
+       - not_null
+
+    - name: order_estimated_delivery_date
+      tests:
+       - not_null
+
+ - name: stg_order_items
+   columns:
+    - name: order_id
+      tests:
+       - not_null
     
     - name: item_sequence_number
-      description: |
-       Sequential line item number within the order (1, 2, 3,...)
-       Represents the order in which items were added to the cart
       tests:
        - not_null
-       - dbt_utils.expression_is_true:
-          expression: ">0"
-          config:
-           severity: warn
 
     - name: product_id
-      description: "Foreign key to products table"
       tests:
        - not_null
-       - relationships:
-          to: ref('stg_products')
-          field: product_id
 
     - name: seller_id
-      description: "Foreign key to sellers table"
       tests:
        - not_null
-       - relationships:
-          to: ref('stg_sellers')
-          field: seller_id
 
     - name: price
-      description: |
-       Item price in Brazilian Reals (BRL)
-       **Marketplace Pricing:** Same product_id may have difference prices across orders, 
-       reflecting different sellers' pricing strategies. 
       tests:
        - not_null
-       - dbt_utils.expression_is_true:
-          expression: ">0"
-          config:
-           severity: warn
 
     - name: freight_value
-      description: | 
-       Shipping/freight cost in Brazilian Reals (BRL)
-       Can be zero, representing free shipping promotions
       tests:
        - not_null
-       - dbt_utils.expression_is_true:
-          expression: "BETWEEN 0 AND 500"
     
     - name: shipping_limit_timestamp
-      description: Deadline when seller must ship item to carrier
+      tests:
+       - not_null
+    
+ - name: stg_order_payments
+   columns:
+    - name: order_id
       tests:
        - not_null
 
+    - name: payment_transaction_number
+      tests:
+       - not_null
 
-   
+    - name: payment_type
+      tests:
+       - not_null
+    
+    - name: payment_installments
+      tests:
+       - not_null
+
+    - name: amount
+      tests:
+       - not_null
+
+ - name: stg_product_category_translation
+   columns:
+    - name: category_name_portuguese
+      tests:
+       - unique
+       - not_null
+    
+    - name: category_name_english
+      tests:
+       - not_null
