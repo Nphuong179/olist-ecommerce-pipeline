@@ -67,8 +67,8 @@ SELECT
         ELSE 'light'
     END AS weight_category,
     CASE
-        WHEN (p.length_cm * p.width_cm * p.height_cm) > 100000 THEN 'large',
-        WHEN (p.length_cm * p.width_cm * p.height_cm) > 10000 THEN 'medium',
+        WHEN (p.length_cm * p.width_cm * p.height_cm) > 100000 THEN 'large'
+        WHEN (p.length_cm * p.width_cm * p.height_cm) > 10000 THEN 'medium'
         ELSE 'small'
     END AS size_category,
 
@@ -77,7 +77,7 @@ SELECT
         WHEN p.name_length > 0
             AND p.description_length > 0
             AND p.photo_quantity > 0
-        THEN TRUE,
+        THEN TRUE
         ELSE FALSE
     END AS has_complete_listing,
     
