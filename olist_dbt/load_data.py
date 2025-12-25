@@ -2,7 +2,7 @@ import duckdb
 from pathlib import Path
 print("FILE IS BEING READ!")
 def main():
-    # Get the project directory
+    # Get the project directory 
     project_root = Path(__file__).parent.parent
     data_dir = project_root/'data'/'raw'
     db_path = project_root/'olist_dbt'/'dev.duckdb'
@@ -18,7 +18,7 @@ def main():
     print(f"Found {len(csv_files)} csv files")
     conn = duckdb.connect(db_path)
     for csv_file in csv_files:
-        file_name = csv_file.stem.replace('_dataset','')
+        file_name = csv_file.stem.replace('olist_','raw_').replace('_dataset','')
         print(f"Loading data from {file_name} into DuckDB")
         conn.execute(f"""
             CREATE OR REPLACE TABLE {file_name} AS
