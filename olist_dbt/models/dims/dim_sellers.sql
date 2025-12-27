@@ -81,7 +81,10 @@ SELECT
     CASE 
         WHEN next_address_date IS NULL THEN TRUE
         ELSE FALSE
-    END AS is_current
+    END AS is_current,
+
+    -- Metadata for tracking data freshness
+    CURRENT_TIMESTAMP AS updated_at
 
 FROM seller_address_history sah
 LEFT JOIN seller_metrics sm
