@@ -1,0 +1,392 @@
+version: 2
+
+models:
+ - name: fact_orders
+
+   columns:
+    - name: order_id
+      description: "Unique identifier for each order (Natural key)"
+      tests:
+       - unique
+       - not_null
+
+    - name: order_status
+      description: "Current order status at time of data warehouse update"
+      tests:
+       - not_null
+       - accepted_values:
+          values: ['created', 'approved', 'invoiced', 'processing', 'shipped', 'delivered', 'unavailable', 'canceled']
+       - dbt_utils.expression_is_true:
+          expression: "order_delivered_customer_timestamp is not null"
+          where: "order_status = 'delivered'"
+          config:
+           severity: warn
+
+    - name: customer_key
+      description: "Foreign key to dim_customers dimension (Surrogate key)."
+      tests:
+       - not_null
+       - relationships:
+          to: ref('dim_customers')
+          field: customer_key
+    
+    - name: order_purchase_timestamp
+      description: |
+       Timestamp when customer created the order.
+       Served as the reference point for order timing.
+       Never NULL - every order has a purchase timestamp.
+      tests:
+       - not_null
+
+    - name: order_approved_timestamp
+      description: |
+       Timestamp when payment was approved and order entered fulfillment.
+       NULL for canceled orders, orders paid by boleto payment type, or orders with pending/failed payments.
+      tests:
+       - dbt_utils.expression_is_true:
+          expression: ">= order_purchase_timestamp"
+          where: "order_approved_timestamp is not null"
+      # Make sure order was paid partly or fully before being approved
+       - dbt_utils.expression_is_true:
+          expression: "total_payment_amount is not null"
+          where: "order_approved_timestamp is not null"
+          config:
+           severity: warn
+           error_if: ">50"
+           warn_if: ">0"
+    
+    - name: order_delivered_carrier_timestamp
+      description: |
+       Timestamp when order was handed off to logistics carrier.
+       NULL for orders not yet shipped, canceled, or stuck in processing.
+      tests:
+       - dbt_utils.expression_is_true:
+          expression: ">= order_approved_timestamp"
+          where: "order_delivered_carrier_timestamp is not null"
+    
+    - name: order_delivered_customer_timestamp
+      description: "Timestamp when order was successfully delivered to the customer"
+      tests:
+       - dbt_utils.expression_is_true:
+          expression: ">= order_delivered_carrier_timestamp"
+          where: "order_delivered_customer_timestamp is not null"
+
+    - name: order_estimated_delivery_date
+      description: |
+       Estimated delivery date promised to customer at purchase time.
+       Used to calculate delivery performance.
+      tests:
+       - dbt_utils.expression_is_true:
+          expression: "> order_approved_timestamp"
+
+    - name: quantity
+      description: |
+       Total item quantity in the order.
+       NULL for orders with no order_items record (Data quality issue).
+      tests:
+       - dbt_utils.expression_is_true:
+          expression: ">0"
+          where: "quantity is not null"
+
+    - name: unique_product_count
+      description: |
+       Count of distinct products in the order.
+       Measures product diversity per order.
+      tests:
+       - dbt_utils.expression_is_true:
+          expression: ">0"
+          where: "unique_product_count is not null"
+       - dbt_utils.expression_is_true:
+          expression: "unique_product_count <= quantity"
+          where: "unique_product_count is not null AND quantity is not null"
+
+    - name: unique_category_count
+      description: "Count of distinct product categories in the order"
+      tests:
+       - dbt_utils.expression_is_true:
+          expression: ">0"
+          where: "unique_category_count is not null"
+       - dbt_utils.expression_is_true:
+          expression: "unique_category_count <= unique_product_count"
+          where: "unique_category_count is not null AND unique_product_count is not null"
+
+    - name: unique_seller_count
+      description: "Count of distinct sellers fulfilling items in the order"
+      tests:
+       - dbt_utils.expression_is_true:
+          expression: ">0"
+          where: "unique_seller_count is not null"
+    
+    - name: total_price
+      description: |
+       Sum of all item prices excluding freight costs.
+       Represents product value before shipping charges.
+      tests:
+       - dbt_utils.expression_is_true:
+          expression: ">0"
+          where: "total_price is not null"
+
+    - name: total_freight_value
+      description: |
+       Sum of all shipping costs across all items in the order.
+       Freight charged per item, not per order.
+       Can be 0 for free shipping promotions.
+      tests:
+       - dbt_utils.expression_is_true:
+          expression: ">=0"
+          where: "total_freight_value is not null"
+    
+    - name: total_order_amount
+      description: |
+       Total order value including items and freight.
+       Should be equal total_payment_amount for successfully paid orders.
+      tests:
+       - not_null
+       - dbt_utils.expression_is_true:
+          expression: ">0"
+
+    - name: total_payment_amount
+      description: |
+       Sum of all payment transactions for the order.
+       NULL for unpaid or canceled-before-payment order.
+      tests:
+       - dbt_utils.expression_is_true:
+          expression: ">0"
+          where: "total_payment_amount is not null"
+
+    - name: payment_transaction_count
+      description: |
+       Number of separate payment transactions for the order.
+       Value > 1 indicates split payments. 
+      tests:
+       - dbt_utils.expression_is_true:
+          expression: ">0"
+          where: "payment_transaction_count is not null"
+
+    - name: unique_payment_types
+      description: |
+       Count of distinct payment methods used for the order.
+       Examples: credit_card, debit_card, voucher.
+       Measures payment diversity per order.
+      tests:
+       - dbt_utils.expression_is_true:
+          expression: ">0"
+          where: "unique_payment_types is not null"
+       - dbt_utils.expression_is_true:
+          expression: "unique_payment_types <= payment_transaction_count"
+          where: "unique_payment_types is not null AND payment_transaction_count"
+
+    - name: installments_count
+      description: |
+       Number of installments for credit_card payment method.
+       Value = 1 for single payment. 
+      tests:
+       - dbt_utils.expression_is_true:
+          expression: ">0"
+          where: "installments_count is not null"
+
+    - name: order_value_payment_difference
+      description: |
+       Difference between total payment and total order value.
+       Positive: overpayment, Negative: underpayment, Zero: exact match. 
+
+    - name: hours_to_approval
+      description: |
+       Hours from order purchase to payment approval.
+       Measures payment processing speed and customer payment completion time.
+      tests:
+       - dbt_utils.expression_is_true:
+          expression: ">=0"
+          where: "order_approved_timestamp is not null"
+
+    - name: hours_to_carrier
+      description: |
+       Hours from order purchase to carrier pickup.
+       Includes payment approval, seller processing, and packaging time.
+      tests:
+       - dbt_utils.expression_is_true:
+          expression: ">=0"
+          where: "order_delivered_carrier_timestamp is not null"
+
+    - name: hours_to_delivered
+      description: |
+       Hours from order purchase to successful customer delivery.
+       End-to-end order fulfillment duration from customer point of view.
+      tests:
+       - dbt_utils.expression_is_true:
+          expression: ">=0"
+          where: "order_delivered_customer_timestamp is not null"
+      # Flag suspiciously fast deliveries 
+       - dbt_utils.expression_is_true:
+          expression: ">=1"
+          where: "hours_to_delivered is not null"
+          config:
+           severity: warn
+
+    - name: hours_in_transit
+      description: |
+       Hours from carrier pickup to customer delivery.
+       Isolates logistics performance from seller processing time.
+      tests:
+       - dbt_utils.expression_is_true:
+          expression: ">=0"
+          where: "order_delivered_customer_timestamp is not null"
+
+    - name: delivered_vs_estimated
+      description: |
+       Hours difference between actual delivery and estimated delivery date.
+       Positive: late delivery, Negative: early delivery, Zero: on-time
+       Key metric for customer satisfaction and operational efficiency
+
+    - name: delivered_on_time
+      description: |
+       Boolean flag indicating delivery performance.
+       TRUE: delivered on or before estimated
+       FALSE: delivered after estimated
+      tests:
+       - accepted_values:
+          values: [true, false]
+          where: "order_delivered_customer_timestamp is not null"
+
+ - name: fact_order_items
+   description: "Fact table capturing individual items with orders"
+   tests:
+   # Ensure grain uniqueness: one record per order per item
+    - dbt_utils.unique_combination_of_columns:
+       combination_of_columns:
+        - order_id
+        - item_sequence_number
+   columns:
+    - name: order_id
+      description: |
+       Identifier for each order.
+       One order_id can contain multiple records. Each record represents for each item added to the order.
+      tests:
+       - not_null
+      
+    - name: item_sequence_number
+      description: |
+       Sequential number represents each item in the order.
+       MAX value indicates the total quantity of items in order.
+      tests:
+       - not_null
+       - dbt_utils.expression_is_true:
+          expression: ">0"
+
+    - name: product_id
+      description: "Product key linking to dim_products dimension (Natural key)"
+      tests:
+       - not_null
+       - relationships:
+          to: ref('dim_products')
+          field: product_id
+
+    - name: seller_key
+      description: "Seller key linking to dim_customers table (Surrogate key)"
+      tests:
+       - not_null
+       - relationships:
+          to: ref('dim_sellers')
+          field: seller_key
+
+    - name: customer_key
+      description: "Customer key linking to dim_sellers table (Surrogate key)"
+      tests:
+       - not_null
+       - relationships:
+          to: ref('dim_customers')
+          field: customer_key
+
+    - name: order_purchase_timestamp
+      description: |
+       Timestamp when customer created the order.
+       Used to identify when the item was purchased.
+       Never NULL. Every order-item has a purchase time.
+      tests:
+       - not_null
+    
+    - name: item_price
+      description: |
+       Price of the item sold by the seller.
+       Different prices are offered by various sellers, at different time.
+      tests:
+       - not_null
+       - dbt_utils.expression_is_true:
+          expression: ">=0"
+          
+    - name: freight_value
+      description: |
+       Freight shipping cost for each item in the order.
+       Affected by distance between seller's area and customer's area, weight, and physical dimensions of the product.
+      tests:
+       - not_null
+       - dbt_utils.expression_is_true:
+          expression: ">=0"
+        
+    - name: freight_as_percent_of_price
+      description: "Freight cost expressed as percentage of item price."
+      tests:
+       - dbt_utils.expression_is_true:
+          expression: ">=0"
+          where: "freight_as_percent_of_price is not null"
+       - dbt_utils.expression_is_true:
+          expression: "< 300"
+          where: "freight_as_percent_of_price is not null"
+          config:
+           severity: warn
+      
+    - name: shipping_limit_timestamp
+      description: "Timestamp deadline that the item should be handed off to the logistics carrier before at"
+      tests:
+       - not_null
+       - dbt_utils.expression_is_true:
+          expression: "> order_purchase_timestamp" 
+          where: "shipping_limit_timestamp is not null AND order_purchase_timestamp is not null"
+
+    - name: hours_to_shipping_limit
+      description: "Hours from order purchase to shipping deadline"
+      tests:
+       - dbt_utils.expression_is_true:
+          expression: ">0"
+          where: "hours_to_shipping_limit is not null"
+      # Flag unrealistically short estimated fulfillment time 
+       - dbt_utils.expression_is_true:
+          expression: ">1"
+          where: "hours_to_shipping_limit is not null"
+          config:
+           severity: warn
+      # Flag unrealistically long estimated fulfillment time
+       - dbt_utils.expression_is_true:
+          expression: "< 720" # 30 days
+          where: "hours_to_shipping_limit is not null"
+          config:
+           severity: warn
+
+    - name: hours_past_shipping_limit
+      description: |
+       Hours difference between actual handed off to logistics carrier and estimated time.
+       Positive: late seller's delivery. Negative: early delivery. Zero: on-time.
+      
+    - name: met_shipping_deadline
+      description: "Derived flag indicate whether seller's delivery to logistics carrier meet deadline"
+      tests:
+       - accepted_values:
+          values: [true, false]
+    
+    - name: is_high_freight_item
+      description: |
+       Mark item that has freight cost equivalent to over 50% of item price
+       Indicates item that has extensively high freight cost compared to the item price.
+      tests:
+       - accepted_values:
+          values: [true, false]
+
+    - name: is_free_shipping
+      description: |
+       Mark item that has no freight cost.
+       Indicates free shipping promotions in the item delivery.
+      tests:
+       - accepted_values:
+          values: [true, false]
+
+ 
