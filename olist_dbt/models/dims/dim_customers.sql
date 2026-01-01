@@ -34,7 +34,11 @@ WITH
     customer_address_history AS (
     -- Adding validity periods
         SELECT
-            *,
+            customer_id,
+            zip_code_prefix,
+            city,
+            state,
+            first_seen_date,
             ROW_NUMBER() OVER(PARTITION BY customer_id ORDER BY first_seen_date) AS address_sequence,
             LEAD(first_seen_date) OVER(PARTITION BY customer_id ORDER BY first_seen_date) AS next_address_date
         FROM customer_addresses
@@ -76,11 +80,14 @@ SELECT
 
     -- Validity periods
     cah.first_seen_date AS valid_from,
-    COALESCE(cah.next_address_date, CAST('9999-12-31' AS DATE)) AS valid_to,
+    COALESCE(cah.next_address_date, CAST('9999-12-31 23:59:59' AS TIMESTAMP)) AS valid_to,
     CASE
         WHEN cah.next_address_date IS NULL THEN TRUE
         ELSE FALSE
-    END AS is_current
+    END AS is_current,
+
+    -- Metadata for tracking data freshness
+    CURRENT_TIMESTAMP AS updated_at
 
 FROM customer_address_history cah
 LEFT JOIN customer_metrics cm

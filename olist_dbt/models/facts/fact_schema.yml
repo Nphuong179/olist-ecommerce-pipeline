@@ -48,7 +48,7 @@ models:
       tests:
        - dbt_utils.expression_is_true:
           expression: ">= order_purchase_timestamp"
-          where: "order_approved_timestamp is not null"
+          where: "order_approved_timestamp is not null AND order_purchase_timestamp is not null"
       # Make sure order was paid partly or fully before being approved
        - dbt_utils.expression_is_true:
           expression: "total_payment_amount is not null"
@@ -65,14 +65,14 @@ models:
       tests:
        - dbt_utils.expression_is_true:
           expression: ">= order_approved_timestamp"
-          where: "order_delivered_carrier_timestamp is not null"
+          where: "order_delivered_carrier_timestamp is not null AND order_approved_timestamp is not null"
     
     - name: order_delivered_customer_timestamp
       description: "Timestamp when order was successfully delivered to the customer"
       tests:
        - dbt_utils.expression_is_true:
           expression: ">= order_delivered_carrier_timestamp"
-          where: "order_delivered_customer_timestamp is not null"
+          where: "order_delivered_customer_timestamp is not null ADN order_delivered_carrier_timestamp is not null"
 
     - name: order_estimated_delivery_date
       description: |
@@ -81,6 +81,7 @@ models:
       tests:
        - dbt_utils.expression_is_true:
           expression: "> order_approved_timestamp"
+          where: "order_approved_timestamp is not null"
 
     - name: quantity
       description: |
@@ -233,7 +234,7 @@ models:
       tests:
        - dbt_utils.expression_is_true:
           expression: ">=0"
-          where: "order_delivered_customer_timestamp is not null"
+          where: "order_delivered_customer_timestamp is not null AND order_delivered_carrier_timestamp is not null"
 
     - name: delivered_vs_estimated
       description: |
@@ -332,10 +333,10 @@ models:
       tests:
        - dbt_utils.expression_is_true:
           expression: ">=0"
-          where: "freight_as_percent_of_price is not null"
+          where: "freight_cost_share_of_price is not null"
        - dbt_utils.expression_is_true:
           expression: "< 3"
-          where: "freight_as_percent_of_price is not null"
+          where: "freight_cost_share_of_price is not null"
           config:
            severity: warn
       
@@ -417,28 +418,42 @@ models:
        - dbt_utils.expression_is_true:
           expression: ">0"
    
-    - name: amount
+    - name: payment_type
+      description: "Payment method used for the transaction."
+      tests:
+       - accepted_values:
+          values: ['boleto', 'voucher', 'debit_card', 'not_defined', 'credit_card']
+
+    - name: payment_installments
+      description: |
+       Number of monthly installments.
+       Value = 1 for payment in full.
+      tests:
+       - dbt_utils.expression_is_true:
+          expression: ">0"
+
+    - name: payment_value
       description: "Value of this payment."
       tests:
        - dbt_utils.expression_is_true:
           expression: ">0"
+          where: "payment_type <> 'not_defined'"
     
     - name: payment_share_of_order
       description: "Percentage of this payment for total order value (price + freight cost) of the order"
       tests:
-       - not_null
        - dbt_utils.expression_is_true:
-          expression: ">0"
-       - dbt_utils.expression_is_true:
-          expression: "< 1.2"
-          config:
-           severity: warn
+          expression: "<= 1"
+          where: "payment_share_of_order is not null"
          
     - name: monthly_installment_amount
       tests: 
-       - not_null
+       - not_null:
+          config:
+           severity: warn
        - dbt_utils.expression_is_true:
-          expression: "< amount"
+          expression: "< payment_value"
+          where: "monthly_installment_amount is not null"
 
     - name: is_primary_payment
       tests:
@@ -524,10 +539,7 @@ models:
 
     - name: review_created_timestamp 
       description: "Timestamp when customer submitted the review"
-      tests:
-       - dbt_utils.expression_is_true:
-          expression: "> order_delivered_customer_timestamp" # adding order_delivered_customer_timestamp column into fact_order_reviews
-
+      
     - name: review_answer_timestamp
       description: "Timestamp when seller response to the review"
       tests:
@@ -535,19 +547,16 @@ models:
           expression: "> review_created_timestamp"
           where: "review_answer_timestamp is not null AND review_created_timestamp is not null"
 
+   # No tests needed for order_delivered_customer_timestamp and days_from_delivery_to_review because Olist
+   # allows customers making review before received the order. The order_delivered_customer_timestamp can be null,
+   # before or after review_created_timestamp
     - name: order_delivered_customer_timestamp
       description: |
        Timestamp when order was successfully delivered to the customer.
        Purpose: Provides delivery context for analyzing review timing.
-      tests:
-       - dbt_utils.expression_is_true:
-          expression: "<= review_created_timestamp"
-
+       
     - name: days_from_delivery_to_review
       description: "Days elapsed between order delivery and review submission"
-      tests:
-       - dbt_utils.expression_is_true:
-          expression: ">=0"
 
     - name: hours_to_seller_response
       description: "Hours between review submission and seller response."

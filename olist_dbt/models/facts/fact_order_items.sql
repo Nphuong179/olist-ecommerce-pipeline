@@ -6,7 +6,7 @@ SELECT
     soi.item_sequence_number,
 
     -- Foreign key to dimension tables
-    dp.product_key,
+    soi.product_id,
     ds.seller_key,
     dc.customer_key,
 
@@ -19,8 +19,8 @@ SELECT
 
     CASE
         WHEN soi.price > 0
-        THEN (soi.freight_value / soi.price * 100)
-    END AS freight_as_percent_of_price,
+        THEN (soi.freight_value / soi.price)
+    END AS freight_cost_share_of_price,
 
     -- Shipping deadline
     soi.shipping_limit_timestamp,
@@ -68,9 +68,6 @@ LEFT JOIN {{ ref("stg_orders") }} so
     ON soi.order_id = so.order_id
 
 -- Join dimension tables to replace Natural key to Surrogate key
--- Joining dim_products
-LEFT JOIN {{ ref("dim_products") }} dp
-    ON soi.product_id = dp.product_id
 -- Joining dim_sellers
 LEFT JOIN {{ ref("dim_sellers") }} ds
     ON soi.seller_id = ds.seller_id

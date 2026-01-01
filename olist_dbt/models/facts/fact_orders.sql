@@ -24,10 +24,10 @@ WITH
             COUNT(*) AS payment_transaction_count,
             COUNT(DISTINCT payment_type) AS unique_payment_types,
             MAX(payment_installments) AS installments_count,
-            SUM(amount) AS total_payment_amount
+            SUM(payment_value) AS total_payment_amount
         FROM {{ ref("stg_order_payments") }}
         GROUP BY order_id
-    ),
+    )
 
 SELECT
     -- Order identifiers
@@ -64,7 +64,7 @@ SELECT
     op.installments_count,
 
     -- Payment vs. order value comparison
-    op.total_payment_amount - oi.total_order_amount,
+    (op.total_payment_amount - oi.total_order_amount) AS order_value_payment_difference,
 
     -- Derived metrics: Time durations (in hours)
     CASE

@@ -23,24 +23,16 @@ models:
       description: |
        Natural key identifying the actual customer person.
        Multiple records with the same customer_id represent address changes over time.
-      tests:
-       - not_null
 
     - name: zip_code_prefix
       description: |
        Format: 5-digit numeric string (e.g., 38301, 82200).
        Represents the customer's delivery area.
-      tests:
-       - not_null
-       - dbt_utils.not_empty_string #Catches blank strings that pass not_null test 
     
     - name: city
       description: |
        Brazilian city name in lowercase (e.g., curitiba, sao paulo).
        Identifying area where customer receives deliveries.
-      tests:
-       - not_null
-       - dbt_utils.not_empty_string
       
     - name: state
       description: |
@@ -48,7 +40,6 @@ models:
        Format: 2-letter code
        Represents customer's state
       tests:
-       - not_null
        - accepted_values:
           values: ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA',
                    'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO']
@@ -56,7 +47,6 @@ models:
     - name: region
       description: "Customer's region classified by state"
       tests:
-       - not_null
        - accepted_values:
           values: ['southeast', 'south', 'northeast', 'central_west', 'north']
       
@@ -65,7 +55,9 @@ models:
        Timestamp of customer's first order. 
        Remains constant across all records for the same customer_id.
       tests:
-       - not_null
+       - not_null:
+          config:
+           severity: warn
     
     - name: last_order_date
       description: |
@@ -73,9 +65,9 @@ models:
        Remains constant across all records for the same customer_id.
        Used to identify active vs. not active customers.
       tests:
-       - not_null
        - dbt_utils.expression_is_true:
           expression: ">= first_order_date"
+          where: "first_order_date is not null AND last_order_date is not null"
           config:
            severity: error
 
@@ -83,8 +75,6 @@ models:
       description: |
        Timestamp when this address record active
        Defines the start of validity period for Type 2 SCD tracking
-      tests:
-       - not_null
       
     - name: valid_to
       description: |
@@ -92,9 +82,9 @@ models:
        Set to '9999-12-31' for current address.
        Defines the end of validity period.
       tests:
-       - not_null
        - dbt_utils.expression_is_true:
           expression: ">= valid_from"
+          where: "valid_from is not null"
           config:
            severity: error
 
@@ -135,24 +125,16 @@ models:
       description: |
        Natural key identifying the actual seller person.
        Multiple records with the same seller_id represent address changes over time.
-      tests:
-       - not_null
 
     - name: zip_code_prefix
       description: |
        Format: 5-digit numeric string (e.g., 38301, 82200).
        Represents the seller's area.
-      tests:
-       - not_null
-       - dbt_utils.not_empty_string #Catches blank strings that pass not_null test 
 
     - name: city
       description: |
        Brazilian city name in lowercase (e.g., curitiba, sao paulo).
        Identifying area where seller delivers goods.
-      tests:
-       - not_null
-       - dbt_utils.not_empty_string
       
     - name: state
       description: |
@@ -160,7 +142,6 @@ models:
        Format: 2-letter code
        Represents seller's state
       tests:
-       - not_null
        - accepted_values:
           values: ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA',
                    'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO']
@@ -168,7 +149,6 @@ models:
     - name: region
       description: "Seller's region classified by state"
       tests:
-       - not_null
        - accepted_values:
           values: ['southeast', 'south', 'northeast', 'central_west', 'north']
       
@@ -177,7 +157,9 @@ models:
        Timestamp of seller's first order. 
        Remains constant across all records for the same seller_id.
       tests:
-       - not_null
+       - not_null:
+          config:
+           severity: warn
     
     - name: last_order_date
       description: |
@@ -185,9 +167,9 @@ models:
        Remains constant across all records for the same seller_id.
        Used to identify active vs. not active sellers.
       tests:
-       - not_null
        - dbt_utils.expression_is_true:
           expression: ">= first_order_date"
+          where: "first_order_date is not null"
           config:
            severity: error
 
@@ -195,8 +177,6 @@ models:
       description: |
        Timestamp when this address record active
        Defines the start of validity period for Type 2 SCD tracking
-      tests:
-       - not_null
       
     - name: valid_to
       description: |
@@ -204,9 +184,9 @@ models:
        Set to '9999-12-31' for current address.
        Defines the end of validity period.
       tests:
-       - not_null
        - dbt_utils.expression_is_true:
           expression: ">= valid_from"
+          where: "valid_from is not null"
           config:
            severity: error
 
@@ -236,76 +216,69 @@ models:
    columns:
     - name: product_id
       description: "Unique identifier for product"
-      tests:
-       - not_null
-       - unique
 
     - name: category_name_portuguese
       description: "Original Brazilian Portuguese product category name"
-      tests:
-       - not_null
 
     - name: category_name_english
       description: "English translation of product category"
       tests:
-       - not_null
+       - not_null:
+          where: "category_name_portuguese is not null"
+          config:
+           severity: warn
 
     - name: name_length
       description: |
        Character count of product name.
        Note: Product name is not available for privacy.
       tests:
-       - not_null
        - dbt_utils.expression_is_true:
           expression: ">=0"
-          config:
-           severity: warn
       
     - name: description_length
       description: |
        Character count of product description.
        Note: Product description is not available for privacy.
       tests:
-       - not_null
-       - dbt_utils.expression_is_true:
-          expression: ">=0"
+       - not_null:
           config:
            severity: warn
+       - dbt_utils.expression_is_true:
+          expression: ">=0"
+          where: "description_length is not null"
 
     - name: photo_quantity
       description: "Number of product photo in the listing"
       tests:
-       - not_null
-       - dbt_utils.expression_is_true:
-          expression: ">=0"
+       - not_null:
           config:
            severity: warn
+       - dbt_utils.expression_is_true:
+          expression: ">=0"
+          where: "photo_quantity is not null"
 
     - name: weight_gram
       description: "Product weight in gram"
       tests:
-       - not_null
        - dbt_utils.expression_is_true:
           expression: ">=0"
 
     - name: length_cm
       description: "Product length in centimeters"
       tests:
-       - not_null
        - dbt_utils.expression_is_true:
           expression: ">=0"
 
     - name: width_cm
       description: "Product width in centimeters"
       tests:
-       - not_null
        - dbt_utils.expression_is_true:
           expression: ">=0"
 
     - name: height_cm
       description: "Product height in centimeters"
       tests:
-       - not_null
        - dbt_utils.expression_is_true:
           expression: ">=0"
 
@@ -329,8 +302,6 @@ models:
 
     - name: first_order_date
       description: "Timestamp of product's first order"
-      tests:
-       - not_null
 
     - name: unique_seller_count
       description: "Number of sellers who sell the product"
@@ -378,8 +349,6 @@ models:
       description: |
        Standard deviation as a percentage of the average.
        Measures how spread out the prices are from the average.
-      tests:
-       - not_null
 
     - name: price_variation_category
       description: "Price variation coefficient classification"

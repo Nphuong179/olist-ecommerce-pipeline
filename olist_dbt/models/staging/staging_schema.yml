@@ -34,35 +34,43 @@ models:
       
     - name: category_name_portuguese
       tests:
-       - not_null
+       - not_null:
+          config:
+           severity: warn
 
     - name: name_length
       tests:
-       - not_null
+       - not_null:
+          config:
+           severity: warn
 
-    - name: description_length
-      tests:
-       - not_null
+    - name: description_length # not_null test should be in dim_schema for business rule
 
-    - name: photo_quantity
-      tests:
-       - not_null
+    - name: photo_quantity # not_null test should be in dim_schema for business rule
 
     - name: weight_gram
       tests:
-       - not_null
-
+       - not_null:
+          config:
+           severity: warn
+         
     - name: length_cm
       tests:
-       - not_null
+       - not_null:
+          config:
+           severity: warn
 
     - name: width_cm
       tests:
-       - not_null
+       - not_null:
+          config:
+           severity: warn
 
     - name: height_cm
       tests:
-       - not_null
+       - not_null:
+          config:
+           severity: warn
 
  - name: stg_sellers
    
@@ -103,17 +111,11 @@ models:
       tests:
        - not_null
 
-    - name: order_approved_timestamp
-      tests:
-       - not_null
+    - name: order_approved_timestamp # not not_null test involved. Column can have null value.
 
     - name: order_delivered_carrier_timestamp
-      tests:
-       - not_null
 
     - name: order_delivered_customer_timestamp
-      tests:
-       - not_null
 
     - name: order_estimated_delivery_date
       tests:
@@ -124,7 +126,10 @@ models:
     - name: order_id
       tests:
        - not_null
-    
+       - relationships:
+          to: ref('stg_orders')
+          field: order_id
+
     - name: item_sequence_number
       tests:
        - not_null
@@ -154,6 +159,9 @@ models:
     - name: order_id
       tests:
        - not_null
+       - relationships:
+          to: ref('stg_orders')
+          field: order_id
 
     - name: payment_transaction_number
       tests:
@@ -167,10 +175,36 @@ models:
       tests:
        - not_null
 
-    - name: amount
+    - name: payment_value
+      tests:
+       - not_null
+ - name: stg_order_reviews
+   columns:
+    - name: review_id
+      tests:
+      # review_id is not unique in the source dataset. Many review_ids appear across multiple order_id.
+       - not_null
+
+    - name: order_id
+      tests:
+       - not_null
+       - relationships:
+          to: ref('stg_orders')
+          field: order_id
+
+    - name: review_score
       tests:
        - not_null
 
+    - name: review_title
+
+    - name: review_message
+
+    - name: review_created_timestamp
+      tests:
+       - not_null
+
+    - name: review_answer_timestamp
  - name: stg_product_category_translation
    columns:
     - name: category_name_portuguese

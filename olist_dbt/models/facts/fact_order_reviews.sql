@@ -28,6 +28,13 @@ SELECT
     -- Review timing
     sor.review_created_timestamp,
     sor.review_answer_timestamp,
+    so.order_delivered_customer_timestamp,
+
+    CASE
+        WHEN so.order_delivered_customer_timestamp IS NOT NULL
+            AND sor.review_created_timestamp IS NOT NULL
+        THEN DATE_DIFF('day', so.order_delivered_customer_timestamp, sor.review_created_timestamp)
+    END AS days_from_delivery_to_review,
 
     -- Derived metrics: Response behavior
     CASE

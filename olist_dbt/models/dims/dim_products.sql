@@ -21,7 +21,7 @@ WITH
             MAX(order_purchase_timestamp) AS latest_order_date,
             COUNT(DISTINCT seller_id) AS unique_seller_count,
             COUNT(DISTINCT order_id) AS total_orders_containing_product,
-            COUNT(*) AS total_unit_sold
+            COUNT(*) AS total_units_sold
         FROM product_order_details
         GROUP BY product_id
     ),
@@ -40,8 +40,6 @@ WITH
     )
 
 SELECT
-    {{ dbt_utils.generate_surrogate_key(['p.product_id']) }} AS product_key,
-
     -- Product identifiers
     p.product_id,
 
@@ -66,6 +64,7 @@ SELECT
         WHEN p.weight_gram > 5000 THEN 'medium'
         ELSE 'light'
     END AS weight_category,
+
     CASE
         WHEN (p.length_cm * p.width_cm * p.height_cm) > 100000 THEN 'large'
         WHEN (p.length_cm * p.width_cm * p.height_cm) > 10000 THEN 'medium'
@@ -85,7 +84,7 @@ SELECT
     pm.first_order_date,
     pm.unique_seller_count,
     pm.total_orders_containing_product,
-    pm.total_unit_sold,
+    pm.total_units_sold,
 
     -- Price metrics
     ppm.min_price,
@@ -100,7 +99,10 @@ SELECT
         WHEN ppm.price_variation_coefficient > 20 THEN 'moderate_variation'
         WHEN ppm.price_variation_coefficient > 0 THEN 'low_variation'
         ELSE 'fixed_price'
-    END AS price_variation_category
+    END AS price_variation_category,
+
+    -- Metadata for tracking data freshness
+    CURRENT_TIMESTAMP AS updated_at
 
 FROM {{ ref('stg_products') }} p
 LEFT JOIN product_metrics pm

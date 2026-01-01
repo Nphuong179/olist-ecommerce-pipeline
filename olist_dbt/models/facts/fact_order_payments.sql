@@ -20,21 +20,21 @@ SELECT
     sop.payment_installments,
 
     -- Monetary values
-    sop.amount,
+    sop.payment_value,
 
     CASE
         WHEN opa.total_payment > 0
-        THEN (sop.amount / opa.total_payment)
+        THEN (sop.payment_value / opa.total_payment)
     END AS payment_share_of_order,
 
     CASE
         WHEN sop.payment_installments > 0
-        THEN (sop.amount / sop.payment_installments)
+        THEN (sop.payment_value / sop.payment_installments)
     END AS monthly_installment_amount,
 
     -- Derived flag: Payment characteristics
     CASE
-        WHEN sop.amount = opa.largest_payment
+        WHEN sop.payment_value = opa.largest_payment
         THEN TRUE
         ELSE FALSE
     END AS is_primary_payment,
@@ -52,5 +52,5 @@ SELECT
     END AS is_installment_payment
 
 FROM {{ ref("stg_order_payments") }} sop
-LEFT JOIN order_payments_aggregates opa
+LEFT JOIN order_payment_aggregates opa
     ON sop.order_id = opa.order_id
