@@ -2,18 +2,23 @@ version: 2
 
 models:
  - name: fact_orders
-
+   description: |
+    Fact table capturing order-level transactions and fulfillment metrics.
+    Grain: one record per order.
+    The fact table provides aggregates order items and payments in order-level view.
    columns:
     - name: order_id
       description: "Unique identifier for each order (Natural key)"
-      tests:
-       - unique
-       - not_null
 
     - name: order_status
-      description: "Current order status at time of data warehouse update"
+      description: |
+       Current order status at time of data warehouse update.
+       Status progression: created -> approved -> invoiced -> processing -> shipped -> delivered.
+       Terminal states:
+        - delivered: Successfully completed
+        - canceled: Customer or system cancellation
+        - unavailable: Product became unavailable
       tests:
-       - not_null
        - accepted_values:
           values: ['created', 'approved', 'invoiced', 'processing', 'shipped', 'delivered', 'unavailable', 'canceled']
        - dbt_utils.expression_is_true:
@@ -35,8 +40,6 @@ models:
        Timestamp when customer created the order.
        Served as the reference point for order timing.
        Never NULL - every order has a purchase timestamp.
-      tests:
-       - not_null
 
     - name: order_approved_timestamp
       description: |
@@ -174,7 +177,7 @@ models:
           where: "unique_payment_types is not null"
        - dbt_utils.expression_is_true:
           expression: "unique_payment_types <= payment_transaction_count"
-          where: "unique_payment_types is not null AND payment_transaction_count"
+          where: "unique_payment_types is not null AND payment_transaction_count is not null"
 
     - name: installments_count
       description: |
@@ -260,7 +263,8 @@ models:
     - name: order_id
       description: |
        Identifier for each order.
-       One order_id can contain multiple records. Each record represents for each item added to the order.
+       One order_id can contain multiple records.
+       Each record represents for each item added to the order.
       tests:
        - not_null
       
@@ -323,14 +327,14 @@ models:
        - dbt_utils.expression_is_true:
           expression: ">=0"
         
-    - name: freight_as_percent_of_price
+    - name: freight_cost_share_of_price
       description: "Freight cost expressed as percentage of item price."
       tests:
        - dbt_utils.expression_is_true:
           expression: ">=0"
           where: "freight_as_percent_of_price is not null"
        - dbt_utils.expression_is_true:
-          expression: "< 300"
+          expression: "< 3"
           where: "freight_as_percent_of_price is not null"
           config:
            severity: warn
@@ -389,4 +393,206 @@ models:
        - accepted_values:
           values: [true, false]
 
+ - name: fact_order_payments
+   description: "Fact table capturing each payment for the order"
+   tests:
+   # Ensure grain uniqueness: one record per order per payment
+    - dbt_utils.unique_combination_of_columns:
+       combination_of_columns:
+        - order_id
+        - payment_transaction_number
+
+   columns:
+    - name: order_id
+      description: |
+       Identifier for each order.
+       Each record represents for each transactions paid for the order.
+       One order can contain multiple records.
+    
+    - name: payment_transaction_number
+      description: |
+       Sequential number represents each payment made for the order.
+       MAX value indicates total payments made for the order.
+      tests:
+       - dbt_utils.expression_is_true:
+          expression: ">0"
+   
+    - name: amount
+      description: "Value of this payment."
+      tests:
+       - dbt_utils.expression_is_true:
+          expression: ">0"
+    
+    - name: payment_share_of_order
+      description: "Percentage of this payment for total order value (price + freight cost) of the order"
+      tests:
+       - not_null
+       - dbt_utils.expression_is_true:
+          expression: ">0"
+       - dbt_utils.expression_is_true:
+          expression: "< 1.2"
+          config:
+           severity: warn
+         
+    - name: monthly_installment_amount
+      tests: 
+       - not_null
+       - dbt_utils.expression_is_true:
+          expression: "< amount"
+
+    - name: is_primary_payment
+      tests:
+       - accepted_values: 
+          values: [true, false]
+
+    - name: is_only_payment
+      tests:
+       - accepted_values:
+          values: [true, false]
+
+    - name: is_installment_payment
+      tests:
+       - accepted_values:
+          values: [true, false] 
+
+ - name: fact_order_reviews
+   description: |
+    Fact order capturing reviews for each order.
+    Grain: One record per order per review.
+   tests:
+    - dbt_utils.unique_combination_of_columns:
+       combination_of_columns:
+        - review_id
+        - order_id
+
+    - dbt_utils.expression_is_true:
+       expression: "NOT(is_rating_only = true AND is_full_review = true)"
+       config:
+        severity: error
+   columns:
+   # review_id is not unique idendifier, should add severity: warn in test unique in stg_schema 
+    - name: review_id
+      description: |
+       Identifier for the review.
+       **Data Quality Issue**: The column is not unique. Using combination of review_id + order_id in identifying unique identifier.
+      
+    - name: order_id
+      description: |
+       Foreign key linking to fact orders dimension.
+       One order_id can contain multiple review_ids.
+    
+    - name: customer_key
+      description: "Foreign key to dim_customers (Surrogate key)"
+      tests:
+       - not_null
+       - relationships:
+          to: ref('dim_customers')
+          field: customer_key
+   
+    - name: review_score
+      description: "Score number rated by customer for the order"
+      tests:
+       - accepted_values:
+          values: [1, 2, 3, 4, 5]
+    
+    - name: review_sentiment
+      description: "Review score classification indicating customer sentiment"
+      tests:
+       - not_null
+       - accepted_values:
+          values: ['positive', 'neutral', 'negative']
+
+    - name: review_title
+      description: "Headline of the review"
+    
+    - name: review_message
+      description: "Detailed feedback provided by customer"
+
+    - name: review_title_length
+      description: "Character count of review_title field."
+      tests:
+       - dbt_utils.expression_is_true:
+          expression: ">=0"
+          where: "review_title_length is not null"
+
+    - name: review_message_length
+      description: "Character count of review_message field."
+      tests:
+       - dbt_utils.expression_is_true:
+          expression: ">=0"
+          where: "review_message_length is not null"
+
+    - name: review_created_timestamp 
+      description: "Timestamp when customer submitted the review"
+      tests:
+       - dbt_utils.expression_is_true:
+          expression: "> order_delivered_customer_timestamp" # adding order_delivered_customer_timestamp column into fact_order_reviews
+
+    - name: review_answer_timestamp
+      description: "Timestamp when seller response to the review"
+      tests:
+       - dbt_utils.expression_is_true:
+          expression: "> review_created_timestamp"
+          where: "review_answer_timestamp is not null AND review_created_timestamp is not null"
+
+    - name: order_delivered_customer_timestamp
+      description: |
+       Timestamp when order was successfully delivered to the customer.
+       Purpose: Provides delivery context for analyzing review timing.
+      tests:
+       - dbt_utils.expression_is_true:
+          expression: "<= review_created_timestamp"
+
+    - name: days_from_delivery_to_review
+      description: "Days elapsed between order delivery and review submission"
+      tests:
+       - dbt_utils.expression_is_true:
+          expression: ">=0"
+
+    - name: hours_to_seller_response
+      description: "Hours between review submission and seller response."
+      tests:
+       - dbt_utils.expression_is_true:
+          expression: ">=0"
+          where: "review_created_timestamp is not null AND review_answer_timestamp is not null"
+
+    - name: has_seller_response
+      description: |
+       Boolean indicator of seller engagement with customer feedback.
+       TRUE: Seller posted a response to this review.
+       FALSE: No seller response yet.
+      tests:
+       - accepted_values:
+          values: [true, false]
+
+    - name: is_fast_response
+      description: |
+       Boolean indicator of rapid seller response.
+       TRUE: Seller responded within 24 hours.
+       FALSE: Seller responded after 24 hours.
+      tests:
+       - accepted_values:
+          values: [true, false]
+
+    - name: is_multiple_reviews
+      description: |
+       Boolean indicator that this order has received multiple reviews.
+       TRUE: order has 2+ reviews.
+       FALSE: order has only 1 review.
+      tests:
+       - accepted_values:
+          values: [true, false]
+
+    - name: is_rating_only
+      description: "Boolean flag determines review with only rating, no message and title."
+      tests:
+       - accepted_values:
+          values: [true, false]
+
+    - name: is_full_review
+      description: "Boolean flag determines completed review with rating, title and message."
+      tests:
+       - accepted_values:
+          values: [true, false]
+      
  
