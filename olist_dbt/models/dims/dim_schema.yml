@@ -49,27 +49,6 @@ models:
       tests:
        - accepted_values:
           values: ['southeast', 'south', 'northeast', 'central_west', 'north']
-      
-    - name: first_order_date
-      description: |
-       Timestamp of customer's first order. 
-       Remains constant across all records for the same customer_id.
-      tests:
-       - not_null:
-          config:
-           severity: warn
-    
-    - name: last_order_date
-      description: |
-       Timestamp of customer's most recent order.
-       Remains constant across all records for the same customer_id.
-       Used to identify active vs. not active customers.
-      tests:
-       - dbt_utils.expression_is_true:
-          expression: ">= first_order_date"
-          where: "first_order_date is not null AND last_order_date is not null"
-          config:
-           severity: error
 
     - name: valid_from
       description: |
@@ -151,27 +130,6 @@ models:
       tests:
        - accepted_values:
           values: ['southeast', 'south', 'northeast', 'central_west', 'north']
-      
-    - name: first_order_date
-      description: |
-       Timestamp of seller's first order. 
-       Remains constant across all records for the same seller_id.
-      tests:
-       - not_null:
-          config:
-           severity: warn
-    
-    - name: last_order_date
-      description: |
-       Timestamp of seller's most recent order.
-       Remains constant across all records for the same seller_id.
-       Used to identify active vs. not active sellers.
-      tests:
-       - dbt_utils.expression_is_true:
-          expression: ">= first_order_date"
-          where: "first_order_date is not null"
-          config:
-           severity: error
 
     - name: valid_from
       description: |

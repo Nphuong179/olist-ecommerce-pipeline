@@ -41,15 +41,6 @@ WITH
         FROM seller_addresses
     ),
 
-    seller_metrics AS (
-        SELECT
-            seller_id,
-            MIN(order_purchase_timestamp) AS first_order_date,
-            MAX(order_purchase_timestamp) AS last_order_date
-        FROM seller_orders
-        GROUP BY seller_id
-    )
-
     -- Final dimension with validity periods and seller metrics
 SELECT 
     {{ dbt_utils.generate_surrogate_key(['sah.seller_id','sah.address_sequence']) }} AS seller_key,
@@ -71,10 +62,6 @@ SELECT
         WHEN sah.state IN ('AM', 'RR', 'AP', 'PA', 'TO', 'RO', 'AC') THEN 'north'
     END AS region,
 
-    -- Seller_metrics
-    sm.first_order_date,
-    sm.last_order_date,
-
     -- Validity periods
     sah.first_seen_date AS valid_from,
     COALESCE(sah.next_address_date, CAST('9999-12-31 23:59:59' AS TIMESTAMP)) AS valid_to,
@@ -87,5 +74,3 @@ SELECT
     CURRENT_TIMESTAMP AS updated_at
 
 FROM seller_address_history sah
-LEFT JOIN seller_metrics sm
-    ON sah.seller_id = sm.seller_id

@@ -42,15 +42,6 @@ WITH
             ROW_NUMBER() OVER(PARTITION BY customer_id ORDER BY first_seen_date) AS address_sequence,
             LEAD(first_seen_date) OVER(PARTITION BY customer_id ORDER BY first_seen_date) AS next_address_date
         FROM customer_addresses
-    ),
-
-    customer_metrics AS (
-        SELECT
-            customer_id,
-            MIN(order_purchase_timestamp) AS first_order_date,
-            MAX(order_purchase_timestamp) AS last_order_date
-        FROM customer_orders
-        GROUP BY customer_id
     )
     
 -- Final dimension with validity periods and customer metrics 
@@ -74,10 +65,6 @@ SELECT
         WHEN cah.state IN ('AM', 'RR', 'AP', 'PA', 'TO', 'RO', 'AC') THEN 'north'
     END AS region,
 
-    -- Customer metrics
-    cm.first_order_date,
-    cm.last_order_date,
-
     -- Validity periods
     cah.first_seen_date AS valid_from,
     COALESCE(cah.next_address_date, CAST('9999-12-31 23:59:59' AS TIMESTAMP)) AS valid_to,
@@ -90,5 +77,3 @@ SELECT
     CURRENT_TIMESTAMP AS updated_at
 
 FROM customer_address_history cah
-LEFT JOIN customer_metrics cm
-    ON cah.customer_id = cm.customer_id
