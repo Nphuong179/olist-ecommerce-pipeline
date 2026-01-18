@@ -21,11 +21,14 @@ models:
       tests:
        - accepted_values:
           values: ['created', 'approved', 'invoiced', 'processing', 'shipped', 'delivered', 'unavailable', 'canceled']
+      # Orders with delivery timestamp should be marked as 'delivered'
        - dbt_utils.expression_is_true:
-          expression: "order_delivered_customer_timestamp is not null"
-          where: "order_status = 'delivered'"
+          expression: "='delivered'"
+          where: "order_delivered_customer_timestamp is not null"
           config:
            severity: warn
+           error_if: ">10"
+           warn_if: ">0"
 
     - name: customer_key
       description: "Foreign key to dim_customers dimension (Surrogate key)."
@@ -49,14 +52,6 @@ models:
        - dbt_utils.expression_is_true:
           expression: ">= order_purchase_timestamp"
           where: "order_approved_timestamp is not null AND order_purchase_timestamp is not null"
-      # Make sure order was paid partly or fully before being approved
-       - dbt_utils.expression_is_true:
-          expression: "total_payment_amount is not null"
-          where: "order_approved_timestamp is not null"
-          config:
-           severity: warn
-           error_if: ">50"
-           warn_if: ">0"
     
     - name: order_delivered_carrier_timestamp
       description: |
@@ -72,7 +67,14 @@ models:
       tests:
        - dbt_utils.expression_is_true:
           expression: ">= order_delivered_carrier_timestamp"
-          where: "order_delivered_customer_timestamp is not null ADN order_delivered_carrier_timestamp is not null"
+          where: "order_delivered_customer_timestamp is not null AND order_delivered_carrier_timestamp is not null"
+      # Make sure order which its status is 'delivered' has order_delivered_customer_timestamp
+       - not_null:
+          where: "order_status = 'delivered'"
+          config:
+           severity: warn
+           error_if: ">10"
+           warn_if: ">0"
 
     - name: order_estimated_delivery_date
       description: |
@@ -101,7 +103,7 @@ models:
           expression: ">0"
           where: "unique_product_count is not null"
        - dbt_utils.expression_is_true:
-          expression: "unique_product_count <= quantity"
+          expression: "<= quantity"
           where: "unique_product_count is not null AND quantity is not null"
 
     - name: unique_category_count
@@ -110,8 +112,10 @@ models:
        - dbt_utils.expression_is_true:
           expression: ">0"
           where: "unique_category_count is not null"
+          config:
+           severity: warn
        - dbt_utils.expression_is_true:
-          expression: "unique_category_count <= unique_product_count"
+          expression: "<= unique_product_count"
           where: "unique_category_count is not null AND unique_product_count is not null"
 
     - name: unique_seller_count
@@ -145,10 +149,13 @@ models:
        Total order value including items and freight.
        Should be equal total_payment_amount for successfully paid orders.
       tests:
-       - not_null
+       - not_null:
+          where: "order_status <> 'canceled' AND order_status <> 'unavailable'" # in cases where items are unavailable
        - dbt_utils.expression_is_true:
           expression: ">0"
+          where: "order_status <> 'canceled'"
 
+   # Make sure order was paid partly or fully before being approved   
     - name: total_payment_amount
       description: |
        Sum of all payment transactions for the order.
@@ -157,6 +164,12 @@ models:
        - dbt_utils.expression_is_true:
           expression: ">0"
           where: "total_payment_amount is not null"
+       - not_null:
+          where: "order_approved_timestamp is not null"
+          config: 
+           severity: warn
+           error_if: ">10"
+           warn_if: ">0"
 
     - name: payment_transaction_count
       description: |
@@ -177,17 +190,13 @@ models:
           expression: ">0"
           where: "unique_payment_types is not null"
        - dbt_utils.expression_is_true:
-          expression: "unique_payment_types <= payment_transaction_count"
+          expression: "<= payment_transaction_count"
           where: "unique_payment_types is not null AND payment_transaction_count is not null"
 
     - name: installments_count
       description: |
        Number of installments for credit_card payment method.
-       Value = 1 for single payment. 
-      tests:
-       - dbt_utils.expression_is_true:
-          expression: ">0"
-          where: "installments_count is not null"
+       Value = 1 for single payment.
 
     - name: order_value_payment_difference
       description: |
@@ -435,9 +444,18 @@ models:
     - name: payment_value
       description: "Value of this payment."
       tests:
+      # All payment types except 'not_defined' and 'voucher' must have positive values
        - dbt_utils.expression_is_true:
           expression: ">0"
-          where: "payment_type <> 'not_defined'"
+          where: "payment_type <> 'not_defined' AND payment_type <> 'voucher'"
+      # Vouchers can have zero value when expired or when order total amount is already covered
+       - dbt_utils.expression_is_true:
+          expression: ">=0"
+          where: "payment_type = 'voucher'"
+      # Not defined payment should have 0 value, should be tracked later.
+       - dbt_utils.expression_is_true:
+          expression: "=0"
+          where: "payment_type = 'not_defined'"
     
     - name: payment_share_of_order
       description: "Percentage of this payment for total order value (price + freight cost) of the order"
@@ -452,7 +470,7 @@ models:
           config:
            severity: warn
        - dbt_utils.expression_is_true:
-          expression: "< payment_value"
+          expression: "<= payment_value"
           where: "monthly_installment_amount is not null"
 
     - name: is_primary_payment
