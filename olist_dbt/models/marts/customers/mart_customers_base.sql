@@ -4,36 +4,49 @@ WITH
     -- Calculate reference date (transactions occured in 2016-2028, we cannot use CURRENT_DATE)
     -- Using purchase timestamp instead of delivery timestamp for Customer Behaviour Analysis (= Purchase Decision)
     reference_date AS (
-        SELECT
-            MAX(order_purchase_timestamp)::DATE AS analysis_date
-        FROM {{ ref('fact_orders') }}
+        SELECT DATE '2018-08-31' AS analysis_date
     ),
-    -- Aggregate customer metrics
-    customer_orders AS (
+
+    -- Value calculations from successfully delivered orders
+    customer_financial_metrics AS (
+        SELECT
+            dc.customer_id,
+            COUNT(fo.order_id) AS delivered_orders,
+            SUM(CASE WHEN fo.delivered_on_time THEN 1 ELSE 0 END)::FLOAT 
+                / NULLIF(COUNT(fo.order_id), 0) AS on_time_delivery_rate,
+            SUM(fo.total_price) AS total_nmv,
+            SUM(fo.total_price) / COUNT(fo.order_id) AS avg_nmv_per_order
+        FROM {{ ref('dim_customers') }} dc
+        JOIN {{ ref('fact_orders') }} fo
+            ON dc.customer_key = fo.customer_key
+        WHERE fo.order_purchase_timestamp < '2018-09-01'
+            AND fo.order_status = 'delivered'
+        GROUP BY dc.customer_id
+    ),
+
+    -- Customer engagement across all order attempts
+    customer_behavior_metrics AS (
         SELECT
             dc.customer_id,
             COUNT(fo.order_id) AS total_orders,
             MIN(fo.order_purchase_timestamp) AS first_order_date,
             MAX(fo.order_purchase_timestamp) AS latest_order_date,
-            COUNT(CASE WHEN fo.order_status = 'canceled' THEN 1 END)::FLOAT 
-                / NULLIF(COUNT(fo.order_id),0) AS order_cancellation_rate,
-            SUM(CASE WHEN fo.delivered_on_time THEN 1 ELSE 0 END)::FLOAT 
-                / NULLIF(COUNT(CASE WHEN fo.order_status = 'delivered' THEN 1 END),0) AS on_time_delivery_rate,
-            SUM(fo.total_price) AS total_nmv,
-            SUM(fo.total_freight_value) AS total_freight_paid,
-            SUM(fo.total_price) / COUNT(fo.order_id) AS avg_nmv_per_order,
-
-            CASE 
+            CASE
                 WHEN COUNT(fo.order_id) > 1
                 THEN DATE_DIFF('day', MIN(fo.order_purchase_timestamp), MAX(fo.order_purchase_timestamp))::FLOAT
-                    / NULLIF(COUNT(fo.order_id) - 1,0)
-                END AS avg_days_between_orders
-        FROM {{ ref('dim_customers') }} dc
-        JOIN {{ ref('fact_orders') }} fo
+                    / NULLIF(COUNT(fo.order_id) - 1, 0)
+                END AS avg_days_between_orders,
+            COUNT(CASE WHEN fo.order_status = 'canceled' THEN 1 END)::FLOAT
+                / NULLIF(COUNT(fo.order_id), 0) AS order_cancellation_rate,
+            COUNT(CASE WHEN fo.order_status = 'unavailable' THEN 1 END)::FLOAT
+                / NULLIF(COUNT(fo.order_id),0) AS unavailable_rate
+        FROM {{ ref("dim_customers") }} dc
+        JOIN {{ ref("fact_orders") }} fo
             ON dc.customer_key = fo.customer_key
+        WHERE fo.order_purchase_timestamp < '2018-09-01'
         GROUP BY dc.customer_id
     ),
-
+    
     -- Aggregate item-level metrics per customer
     customer_items AS (
         SELECT
@@ -46,6 +59,7 @@ WITH
             ON dc.customer_key = foi.customer_key
         JOIN {{ ref("dim_products") }} dp
             ON foi.product_id = dp.product_id
+        WHERE foi.order_purchase_timestamp < '2018-09-01'
         GROUP BY dc.customer_id
     ),
 
@@ -144,25 +158,26 @@ WITH
 
 SELECT
     -- Customer Identifier
-    co.customer_id,
+    cbm.customer_id,
 
     -- Order Volume & Frequency
-    co.total_orders,
-    co.avg_days_between_orders, -- NULL indicates one-time buyers
+    cbm.total_orders,
+    cfm.delivered_orders,
+    cbm.avg_days_between_orders, -- NULL indicates one-time buyers
 
     -- Order Timing
-    co.first_order_date,
-    co.latest_order_date, 
-    DATE_DIFF('day', co.latest_order_date, rd.analysis_date) AS days_since_last_order,
+    cbm.first_order_date,
+    cbm.latest_order_date, 
+    DATE_DIFF('day', cbm.latest_order_date, rd.analysis_date) AS days_since_last_order,
 
     -- Order Quality
-    co.order_cancellation_rate,
-    co.on_time_delivery_rate, -- Rate among delivered orders only
+    cbm.order_cancellation_rate,
+    cbm.unavailable_rate,
+    cfm.on_time_delivery_rate, -- Rate among delivered orders only
 
     -- Financial Metrics
-    co.total_nmv,
-    co.total_freight_paid,
-    co.avg_nmv_per_order,
+    cfm.total_nmv,
+    cfm.avg_nmv_per_order,
 
     -- Review Behavior
     cr.review_participation_rate,
@@ -183,13 +198,15 @@ SELECT
     cpd.max_installments_used,
     cpd.voucher_using_rate,
     cpd.mixed_payment_rate
-FROM customer_orders co
+FROM customer_behavior_metrics cbm
 CROSS JOIN reference_date rd
-JOIN customer_items ci
-    ON co.customer_id = ci.customer_id
-JOIN customer_reviews cr
-    ON co.customer_id = cr.customer_id
-JOIN customer_payment_preference cpp
-    ON co.customer_id = cpp.customer_id
-JOIN customer_payment_details cpd
-    ON co.customer_id = cpd.customer_id
+LEFT JOIN customer_financial_metrics cfm
+    ON cbm.customer_id = cfm.customer_id
+LEFT JOIN customer_items ci
+    ON cbm.customer_id = ci.customer_id
+LEFT JOIN customer_reviews cr
+    ON cbm.customer_id = cr.customer_id
+LEFT JOIN customer_payment_preference cpp
+    ON cbm.customer_id = cpp.customer_id
+LEFT JOIN customer_payment_details cpd
+    ON cbm.customer_id = cpd.customer_id
