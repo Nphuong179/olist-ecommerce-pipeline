@@ -5,13 +5,6 @@ SELECT
     customer_id,
 
     CASE
-        WHEN total_orders = 1 THEN 'one_time_buyer'
-        WHEN total_orders = 2 THEN 'emerging_repeat'
-        WHEN total_orders <= 5 THEN 'active_buyer'
-        ELSE 'loyal_customer'
-    END AS engagement_level,
-
-    CASE
         WHEN unique_categories_purchased <= 1 THEN 'niche_shopper'
         WHEN unique_categories_purchased = 2 THEN 'moderate_explorer'
         ELSE 'multi_category_buyer'
