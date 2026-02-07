@@ -24,6 +24,26 @@ WITH
         GROUP BY dc.customer_id
     ),
 
+    order_sequence AS (
+        SELECT
+            dc.customer_id,
+            fo.order_id,
+            fo.order_status,
+            fo.order_purchase_timestamp,
+            ROW_NUMBER() OVER(PARTITION BY dc.customer_id ORDER BY fo.order_purchase_timestamp DESC) AS order_series 
+        FROM {{ ref("dim_customers") }} dc
+        LEFT JOIN {{ ref("fact_orders") }} fo
+            ON dc.customer_key = fo,customer_key
+    ),
+
+    customer_latest_status AS (
+        SELECT
+            customer_id,
+            order_status
+        FROM order_sequence
+        WHERE order_series = 1
+    ),
+
     -- Customer engagement across all order attempts
     customer_behavior_metrics AS (
         SELECT
@@ -200,6 +220,8 @@ SELECT
     cpd.mixed_payment_rate
 FROM customer_behavior_metrics cbm
 CROSS JOIN reference_date rd
+LEFT JOIN customer_latest_status cls
+    ON cbm.customer_id = cls.customer_id
 LEFT JOIN customer_financial_metrics cfm
     ON cbm.customer_id = cfm.customer_id
 LEFT JOIN customer_items ci
