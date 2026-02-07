@@ -22,8 +22,23 @@ SELECT
     
     -- Lifecycle classification
     CASE
-        WHEN total_orders = 1 AND days_since_last_order <= 60 THEN 'new'
-        WHEN total_orders = 1 AND days_since_last_order > 60 THEN 'one_time_churned'
+        -- Failed acquisition: stuck orders
+        WHEN delivered_orders = 0
+            AND latest_order_status IN ('approved', 'shipped', 'processing', 'invoiced', 'created')
+        THEN 'platform_failure_victim'
+
+        -- Failed acquisition: terminal failures
+        WHEN delivered_orders = 0
+            AND latest_order_status = 'canceled'
+        THEN 'customer_canceled' -- find another name to express delivered_orders = 0
+
+        WHEN delivered_orders = 0
+            AND latest_order_status = 'unavailable'
+        THEN 'stock_out_victim'
+
+        -- Successful customers 
+        WHEN delivered_orders = 1 AND days_since_last_order <= 60 THEN 'new'
+        WHEN delivered_orders = 1 AND days_since_last_order > 60 THEN 'one_time_churned'
         WHEN avg_days_between_orders IS NOT NULL 
             AND days_since_last_order <= avg_days_between_orders * 1.2 THEN 'active'
         WHEN avg_days_between_orders IS NOT NULL
