@@ -33,13 +33,13 @@ WITH
             ROW_NUMBER() OVER(PARTITION BY dc.customer_id ORDER BY fo.order_purchase_timestamp DESC) AS order_series 
         FROM {{ ref("dim_customers") }} dc
         LEFT JOIN {{ ref("fact_orders") }} fo
-            ON dc.customer_key = fo,customer_key
+            ON dc.customer_key = fo.customer_key
     ),
 
     customer_latest_status AS (
         SELECT
             customer_id,
-            order_status
+            order_status AS latest_order_status
         FROM order_sequence
         WHERE order_series = 1
     ),
@@ -181,8 +181,9 @@ SELECT
     cbm.customer_id,
 
     -- Order Volume & Frequency
+    cls.latest_order_status,
     cbm.total_orders,
-    cfm.delivered_orders,
+    COALESCE(cfm.delivered_orders,0) AS delivered_orders, 
     cbm.avg_days_between_orders, -- NULL indicates one-time buyers
 
     -- Order Timing
@@ -216,7 +217,7 @@ SELECT
     -- Payment Details
     cpd.avg_installments_when_using_credit, -- NULL if never used credit card
     cpd.max_installments_used,
-    cpd.voucher_using_rate,
+    COALESCE(cpd.voucher_using_rate,0) AS voucher_using_rate,
     cpd.mixed_payment_rate
 FROM customer_behavior_metrics cbm
 CROSS JOIN reference_date rd

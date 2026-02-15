@@ -22,28 +22,46 @@ SELECT
     
     -- Lifecycle classification
     CASE
-        -- Failed acquisition: stuck orders
+        -- NEVER DELIVERED: Failed acquisition - no successful orders
+        -- Never reached terminal status
         WHEN delivered_orders = 0
             AND latest_order_status IN ('approved', 'shipped', 'processing', 'invoiced', 'created')
-        THEN 'platform_failure_victim'
+        THEN 'never_delivered_stuck'
 
-        -- Failed acquisition: terminal failures
+        -- Customer canceled the order attempt
         WHEN delivered_orders = 0
             AND latest_order_status = 'canceled'
-        THEN 'customer_canceled' -- find another name to express delivered_orders = 0
+        THEN 'never_delivered_canceled'
 
+        -- Platform could not fulfill due to inventory stockout
         WHEN delivered_orders = 0
             AND latest_order_status = 'unavailable'
-        THEN 'stock_out_victim'
+        THEN 'never_delivered_stockout'
 
-        -- Successful customers 
-        WHEN delivered_orders = 1 AND days_since_last_order <= 60 THEN 'new'
-        WHEN delivered_orders = 1 AND days_since_last_order > 60 THEN 'one_time_churned'
+        -- ONE-TIME DELIVERY: Received exactly one order
+        -- Recent first-time buyer, still within expected return window
+        WHEN delivered_orders = 1 
+            AND days_since_last_order <= 60 
+        THEN 'one_time_new'
+
+        -- First-time buyer who has not returned beyond expected window
+        WHEN delivered_orders = 1 
+            AND days_since_last_order > 60 
+        THEN 'one_time_at_risk'
+
+        -- REPEAT CUSTOMERS: Received 2+ orders
+        -- Repeat buyer purchasing on expected window
         WHEN avg_days_between_orders IS NOT NULL 
-            AND days_since_last_order <= avg_days_between_orders * 1.2 THEN 'active'
+            AND days_since_last_order <= avg_days_between_orders * 1.2
+        THEN 'repeat_active'
+
+        -- Repeat buyer overdue for next purchase, still recoverable
         WHEN avg_days_between_orders IS NOT NULL
-            AND days_since_last_order <= avg_days_between_orders * 2.0 THEN 'at_risk'
-        ELSE 'lapsed'
+            AND days_since_last_order <= avg_days_between_orders * 2.0 
+        THEN 'repeat_at_risk'
+
+        -- Repeat buyer significantly overdue, low recovery probability
+        ELSE 'repeat_lapsed'
     END AS lifecycle_stage,
     
     -- Days overdue (negative = early, positive = late)
@@ -58,10 +76,19 @@ SELECT
     END AS recovery_priority_score,
 
     -- Supporting metrics
-    total_orders,
+    delivered_orders,
     total_nmv,
     avg_days_between_orders,
-    days_since_last_order
+    days_since_last_order,
+
+    CASE lifecycle_stage
+    WHEN 'repeat_active' THEN '#10B981'
+    WHEN 'repeat_at_risk' THEN '#F59E0B'
+    WHEN 'repeat_lapsed' THEN '#EF4444'
+    WHEN 'one_time_new' THEN '#3B82F6'
+    WHEN 'one_time_at_risk' THEN '#8B5CF6'
+    ELSE '#6B7280'
+END AS lifecycle_stage_color
 
 FROM {{ ref("mart_customers_base") }}
 CROSS JOIN median_repurchase
