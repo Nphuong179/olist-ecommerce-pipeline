@@ -39,7 +39,7 @@ WITH
             ROW_NUMBER() OVER(PARTITION BY seller_id ORDER BY first_seen_date) AS address_sequence,
             LEAD(first_seen_date) OVER(PARTITION BY seller_id ORDER BY first_seen_date) AS next_address_date
         FROM seller_addresses
-    ),
+    )
 
     -- Final dimension with validity periods and seller metrics
 SELECT 

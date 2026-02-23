@@ -57,6 +57,12 @@ SELECT
     p.length_cm,
     p.width_cm,
     p.height_cm,
+    
+    -- Derived metrics for Chargeable Weight
+    (p.length_cm * p.width_cm * p.height_cm) / 60000.0 AS volumetric_weight,
+    p.weight_gram / 1000.0 AS weight_kg,
+    GREATEST(p.weight_gram / 1000.0,
+            (p.length_cm * p.width_cm * p.height_cm) / 60000.0) AS chargeable_weight,
 
     -- Physical metrics
     CASE
