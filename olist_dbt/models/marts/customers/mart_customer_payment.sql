@@ -56,7 +56,6 @@ SELECT
     voucher_using_rate,
     mixed_payment_rate,
     avg_freight_share,
-    total_freight_paid,
     total_orders
 
 FROM {{ ref('mart_customers_base') }}

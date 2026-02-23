@@ -13,7 +13,7 @@ WITH
             dc.customer_id,
             COUNT(fo.order_id) AS delivered_orders,
             SUM(CASE WHEN fo.delivered_on_time THEN 1 ELSE 0 END)::FLOAT 
-                / NULLIF(COUNT(fo.order_id), 0) AS on_time_delivery_rate,
+                / NULLIF(SUM(CASE WHEN fo.delivered_on_time IS NOT NULL THEN 1 ELSE 0 END), 0) AS on_time_delivery_rate,
             SUM(fo.total_price) AS total_nmv,
             SUM(fo.total_price) / COUNT(fo.order_id) AS avg_nmv_per_order
         FROM {{ ref('dim_customers') }} dc
@@ -30,7 +30,8 @@ WITH
             fo.order_id,
             fo.order_status,
             fo.order_purchase_timestamp,
-            ROW_NUMBER() OVER(PARTITION BY dc.customer_id ORDER BY fo.order_purchase_timestamp DESC) AS order_series 
+            ROW_NUMBER() OVER(PARTITION BY dc.customer_id ORDER BY fo.order_purchase_timestamp DESC) AS order_recency,
+            ROW_NUMBER() OVER(PARTITION BY dc.customer_id ORDER BY fo.order_purchase_timestamp ASC) AS order_sequence
         FROM {{ ref("dim_customers") }} dc
         LEFT JOIN {{ ref("fact_orders") }} fo
             ON dc.customer_key = fo.customer_key
@@ -41,7 +42,15 @@ WITH
             customer_id,
             order_status AS latest_order_status
         FROM order_sequence
-        WHERE order_series = 1
+        WHERE order_recency = 1
+    ),
+
+    customer_first_order AS (
+        SELECT
+            customer_id,
+            order_id AS first_order_id
+        FROM order_sequence
+        WHERE order_sequence = 1
     ),
 
     -- Customer engagement across all order attempts
@@ -185,6 +194,7 @@ SELECT
     cbm.total_orders,
     COALESCE(cfm.delivered_orders,0) AS delivered_orders, 
     cbm.avg_days_between_orders, -- NULL indicates one-time buyers
+    cfo.first_order_id,
 
     -- Order Timing
     cbm.first_order_date,
@@ -223,6 +233,8 @@ FROM customer_behavior_metrics cbm
 CROSS JOIN reference_date rd
 LEFT JOIN customer_latest_status cls
     ON cbm.customer_id = cls.customer_id
+LEFT JOIN customer_first_order cfo
+    ON cbm.customer_id = cfo.customer_id 
 LEFT JOIN customer_financial_metrics cfm
     ON cbm.customer_id = cfm.customer_id
 LEFT JOIN customer_items ci

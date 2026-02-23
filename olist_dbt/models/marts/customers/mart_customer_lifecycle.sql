@@ -79,16 +79,7 @@ SELECT
     delivered_orders,
     total_nmv,
     avg_days_between_orders,
-    days_since_last_order,
-
-    CASE lifecycle_stage
-    WHEN 'repeat_active' THEN '#10B981'
-    WHEN 'repeat_at_risk' THEN '#F59E0B'
-    WHEN 'repeat_lapsed' THEN '#EF4444'
-    WHEN 'one_time_new' THEN '#3B82F6'
-    WHEN 'one_time_at_risk' THEN '#8B5CF6'
-    ELSE '#6B7280'
-END AS lifecycle_stage_color
+    days_since_last_order
 
 FROM {{ ref("mart_customers_base") }}
 CROSS JOIN median_repurchase
