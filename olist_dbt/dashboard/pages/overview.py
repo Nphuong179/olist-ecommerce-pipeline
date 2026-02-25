@@ -377,17 +377,12 @@ col_footer_text, col_footer_link = st.columns([3, 1])
 with col_footer_text:
     st.markdown(f"""
     <div>
-        <p style="margin:0 0 2px 0; font-size:0.8rem; color:#94A3B8; 
-                  text-transform:uppercase; letter-spacing:0.05em;">Next Step</p>
-        <p style="margin:0; font-size:0.85rem; color:#64748B;">
-            {f_num:,} customers paid but never received their orders. 
-            Trace each failure to its responsible team.
+        <p style="margin:0 0 4px 0; font-size:0.85rem; color:#DC2626; text-transform:uppercase; letter-spacing:0.05em; font-weight:700;">Next Step</p>
+        <p style="margin:0 0 8px 0; font-size:0.95rem; color:#991B1B; line-height:1.5;">
+        {f_num:,} customers paid but never received their orders. Trace each failure to its responsible team.
         </p>
     </div>
     """, unsafe_allow_html=True)
 
 with col_footer_link:
-    st.page_link(
-        "pages/failed_acquisition.py", 
-        label="Failed Acquisition Analysis →"
-    )
+    st.page_link("pages/failed_acquisition.py", label="Failed Acquisition Analysis →")
