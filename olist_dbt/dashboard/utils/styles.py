@@ -210,7 +210,7 @@ def analysis_sidepanel(
 </div>"""
 
 
-def progress_bar(label: str, value: float, count: int, color: str) -> str:
+def progress_bar(label: str, value: float, count: int, color: str, unit: str = 'orders') -> str:
     """
     Reusable progress bar component used in sidepanels.
     
@@ -231,7 +231,7 @@ def progress_bar(label: str, value: float, count: int, color: str) -> str:
 <div style="background-color:#F1F5F9; border-radius:4px; height:8px; width:100%;">
 <div style="background-color:{color}; border-radius:4px; height:8px; width:{value:.1f}%;"></div>
 </div>
-<p style="margin:5px 0 0 0; font-size:0.8rem; color:#64748B;">{count:,} orders</p>
+<p style="margin:5px 0 0 0; font-size:0.8rem; color:#64748B;">{count:,} {unit}</p>
 </div>"""
 
 
