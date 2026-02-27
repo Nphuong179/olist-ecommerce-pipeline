@@ -223,19 +223,18 @@ with tab_operational:
 
         st.markdown(analysis_sidepanel(
             context=(
-                f"Among <strong>{len(operational_issues):,} customers</strong> affected by "
-                f"operational failures, <strong>{total_op_orders:,} orders</strong> either "
-                f"could not be fulfilled or were delivered late."
+                "The chart separates operational failures into <strong>seller accountability</strong> "
+                "(missed shipping deadlines, stockouts) vs. <strong>logistics accountability</strong> "
+                "(delays after carrier handoff)."
             ),
             finding="",
             action=(
                 f"<strong>Logistics ({logistics_pct:.0f}%):</strong> Escalate late-transit "
-                f"and lost-package patterns to the Logistics team for review with "
-                f"third-party carrier partners."
+                f"and lost-package patterns to the Logistics team for carrier performance review."
                 f"<br><br>"
-                f"<strong>Seller ({seller_pct:.0f}%):</strong> Flag repeat-offender sellers "
-                f"to Merchant Support for fulfillment SLA discussion and "
-                f"possible penalty enforcement."
+                f"<strong>Seller ({seller_pct:.0f}%):</strong> Identify sellers with repeated "
+                f"shipping deadline misses and stockouts. Enforce fulfillment SLAs "
+                f"through penalties or suspension."
             ),
             border_color=COLORS["logistics"],
             extra_sections=bars_html
@@ -356,10 +355,10 @@ with tab_quality:
 
         st.markdown(analysis_sidepanel(
             context=(
-                f"Among <strong>{int(total_low_reviews):,} low-rated reviews</strong> "
-                f"from <strong>{len(quality_issues):,} at-risk customers</strong>, "
-                f"<strong>{int(with_content_total):,} ({pct_with:.1f}%)</strong> include "
-                f"written content that can be analyzed for root causes."
+                "The chart separates reviews "
+                "<strong>with written content</strong> (analyzable for root causes) from "
+                "<strong>rating-only</strong> (no diagnostic signal), "
+                "quantifying how much material the Data Science team has to work with."
             ),
             finding="",
             action=(
@@ -494,18 +493,14 @@ with tab_economic:
                     f'</p>'
                 )
 
-        st.markdown(analysis_sidepanel(
+        st.markdown(analysis_sidepanel( 
             context=(
-                f"<strong>{total_promo_customers:,}</strong> at-risk customers "
-                f"show promo dependency, segmented into 4 tiers by average order value."
+                "This segmentation groups promo-dependent customers into value tiers so that "
+                "re-engagement campaigns can scale promotion investment "
+                "proportionally &mdash; avoiding overspend on low-value "
+                "customers or undervaluing high-value ones."
             ),
-            finding=(
-                f"Order values span from <strong>R${standard_min:,.0f}</strong> (Standard floor) "
-                f"to <strong>R${premium_max:,.0f}</strong> (Premium ceiling) "
-                f"&mdash; a <strong>{ratio}x</strong> gap. "
-                f"A uniform re-engagement offer would either overspend on low-value "
-                f"customers or undervalue high-value ones."
-            ),
+            finding="",
             action=(
                 f"Present tier segmentation to Marketing team for discussion "
                 f"on differentiated re-engagement campaigns per value tier."
@@ -513,3 +508,33 @@ with tab_economic:
             border_color=COLORS["economic"],
             extra_sections=range_html
         ), unsafe_allow_html=True)
+
+# NAVIGATION FOOTER
+
+one_time_new_count_df = run_query("""
+    SELECT COUNT(DISTINCT customer_id) AS customer_count
+    FROM dev.main_marts.mart_customer_lifecycle
+    WHERE lifecycle_stage = 'one_time_new'
+""")
+one_time_new_count = int(one_time_new_count_df['customer_count'].iloc[0])
+
+st.divider()
+
+col_footer_text, col_footer_link = st.columns([3, 1])
+
+with col_footer_text:
+    st.markdown(f"""
+    <div>
+        <p style="margin:0 0 4px 0; font-size:0.85rem; color:#059669; text-transform:uppercase; letter-spacing:0.05em; font-weight:700;">Next Step</p>
+        <p style="margin:0 0 8px 0; font-size:0.95rem; color:#065F46; line-height:1.5;">
+        There are {one_time_new_count:,} one-time new customers who need retention engagement before
+        reclassifying as one-time at-risk.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col_footer_link:
+    st.page_link(
+        "pages/proactive_retention.py",
+        label="Proactive Retention →"
+    )

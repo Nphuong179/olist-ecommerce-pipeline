@@ -41,75 +41,7 @@ st.markdown(context_box(
     variant="failure"
 ), unsafe_allow_html=True)
 
-# SECTION 2: MONTHLY TREND
-st.subheader("Pipeline Failure Over Time")
-
-trend_df = run_query("""
-    SELECT 
-        DATE_TRUNC('month', fo.order_purchase_timestamp) AS order_month,
-        fo.order_status,
-        COUNT(DISTINCT dc.customer_id) AS failed_customers
-    FROM dev.main_marts.mart_customers_base mcb
-    JOIN dev.main_dims.dim_customers dc
-        ON mcb.customer_id = dc.customer_id
-    JOIN dev.main_facts.fact_orders fo
-        ON dc.customer_key = fo.customer_key
-    WHERE mcb.delivered_orders = 0
-        AND fo.order_purchase_timestamp < '2018-09-01'
-        AND fo.order_status IN ('created', 'approved', 'invoiced', 'processing', 'shipped')
-    GROUP BY order_month, fo.order_status
-    ORDER BY order_month
-""")
-
-if not trend_df.empty:
-    # Status color mapping — consistent with accountability semantics
-    status_colors = {
-        'created': '#8B5CF6',
-        'approved': '#A78BFA',
-        'invoiced': '#EC4899',
-        'processing': '#F97316',
-        'shipped': '#3B82F6',
-    }
-    
-    fig = px.line(
-        trend_df,
-        x='order_month',
-        y='failed_customers',
-        color='order_status',
-        facet_row='order_status',
-        color_discrete_map=status_colors,
-        labels={
-            'order_month': '',
-            'failed_customers': 'Customers',
-            'order_status': 'Status'
-        }
-    )
-    
-    fig.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1].title()))
-
-    fig.update_traces(fill='tozeroy', fillcolor=None)
-    # Apply semi-transparent fill matching each line's color
-    for trace in fig.data:
-        status = trace.name
-        base_color = status_colors.get(status, '#64748B')
-        # Convert hex to rgba with 0.15 opacity for subtle fill
-        r, g, b = int(base_color[1:3], 16), int(base_color[3:5], 16), int(base_color[5:7], 16)
-        trace.fillcolor = f'rgba({r},{g},{b},0.15)'
-
-    fig.update_layout(
-        height=600,
-        margin=dict(l=20, r=20, t=10, b=20),
-        font=dict(family="Inter, sans-serif", size=11),
-        plot_bgcolor='white',
-        paper_bgcolor='white',
-        showlegend=False,  # Facet labels serve as legend
-        xaxis=dict(gridcolor='#F1F5F9'),
-        yaxis=dict(gridcolor='#F1F5F9')
-    )
-
-    st.plotly_chart(fig, use_container_width=True)
-
-# ACCOUNTABILITY DECOMPOSITION TREE
+# SECTION 2: ACCOUNTABILITY DECOMPOSITION TREE
 st.subheader("Accountability Breakdown")
 
 st.markdown("""
@@ -402,17 +334,92 @@ fig.update_layout(
 
 st.plotly_chart(fig, use_container_width=True)
 
-# ============================================================
+# SECTION 3: MONTHLY TREND
+st.subheader("Pipeline Failure Over Time")
+
+trend_df = run_query("""
+    SELECT 
+        DATE_TRUNC('month', fo.order_purchase_timestamp) AS order_month,
+        fo.order_status,
+        COUNT(DISTINCT dc.customer_id) AS failed_customers
+    FROM dev.main_marts.mart_customers_base mcb
+    JOIN dev.main_dims.dim_customers dc
+        ON mcb.customer_id = dc.customer_id
+    JOIN dev.main_facts.fact_orders fo
+        ON dc.customer_key = fo.customer_key
+    WHERE mcb.delivered_orders = 0
+        AND fo.order_purchase_timestamp < '2018-09-01'
+        AND fo.order_status IN ('created', 'approved', 'invoiced', 'processing', 'shipped')
+    GROUP BY order_month, fo.order_status
+    ORDER BY order_month
+""")
+
+if not trend_df.empty:
+    # Status color mapping — consistent with accountability semantics
+    status_colors = {
+        'created': '#8B5CF6',
+        'approved': '#A78BFA',
+        'invoiced': '#EC4899',
+        'processing': '#F97316',
+        'shipped': '#3B82F6',
+    }
+    
+    fig = px.line(
+        trend_df,
+        x='order_month',
+        y='failed_customers',
+        color='order_status',
+        facet_row='order_status',
+        color_discrete_map=status_colors,
+        labels={
+            'order_month': '',
+            'failed_customers': 'Customers',
+            'order_status': 'Status'
+        }
+    )
+    
+    fig.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1].title()))
+
+    fig.update_traces(fill='tozeroy', fillcolor=None)
+    # Apply semi-transparent fill matching each line's color
+    for trace in fig.data:
+        status = trace.name
+        base_color = status_colors.get(status, '#64748B')
+        # Convert hex to rgba with 0.15 opacity for subtle fill
+        r, g, b = int(base_color[1:3], 16), int(base_color[3:5], 16), int(base_color[5:7], 16)
+        trace.fillcolor = f'rgba({r},{g},{b},0.15)'
+
+    fig.update_layout(
+        height=600,
+        margin=dict(l=20, r=20, t=10, b=20),
+        font=dict(family="Inter, sans-serif", size=11),
+        plot_bgcolor='white',
+        paper_bgcolor='white',
+        showlegend=False,  # Facet labels serve as legend
+        xaxis=dict(gridcolor='#F1F5F9'),
+        yaxis=dict(gridcolor='#F1F5F9')
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+st.markdown(f"""
+<div style="background-color:#F8FAFC; padding:20px; border-radius:8px; border-left:4px solid {COLORS['failure']};">
+<h4 style="margin:0 0 12px 0; color:#1E293B; font-size:1.2rem;">Finding</h4>
+<p style="margin:0; font-size:1.0rem; color:#475569; line-height:1.6;">
+<strong>Shipped</strong>, <strong>Processing</strong> and <strong>Invoiced</strong> failures persist
+at steady rates across the entire period &mdash; suggesting systemic issues rather than isolated incidents.
+</p>
+</div>""", unsafe_allow_html=True)
+
 # NAVIGATION FOOTER
-# ============================================================
 
 at_risk_count_df = run_query("""
-    SELECT COUNT(DISTINCT customer_id) AS cnt 
+    SELECT COUNT(DISTINCT customer_id) AS customer_count
     FROM dev.main_marts.mart_customer_value_growth
     WHERE lifecycle_stage LIKE '%_at_risk'
         AND total_issues > 0
 """)
-at_risk_with_issues = int(at_risk_count_df['cnt'].iloc[0])
+at_risk_with_issues = int(at_risk_count_df['customer_count'].iloc[0])
 
 st.divider()
 
@@ -421,11 +428,10 @@ col_footer_text, col_footer_link = st.columns([3, 1])
 with col_footer_text:
     st.markdown(f"""
     <div>
-        <p style="margin:0 0 2px 0; font-size:0.8rem; color:#94A3B8; 
-                  text-transform:uppercase; letter-spacing:0.05em;">Next Step</p>
-        <p style="margin:0; font-size:0.85rem; color:#64748B;">
-            Among customers who did receive orders, {at_risk_with_issues:,} show identifiable 
-            friction points we can act on. Diagnose which issues are fixable.
+        <p style="margin:0 0 4px 0; font-size:0.85rem; color:#F59E0B; text-transform:uppercase; letter-spacing:0.05em; font-weight:700;">Next Step</p>
+        <p style="margin:0 0 8px 0; font-size:0.95rem; color:#92400E; line-height:1.5;">
+        Among customers who did receive orders, {at_risk_with_issues:,} show identifiable
+        friction points we can act on. Diagnose which issues are fixable.
         </p>
     </div>
     """, unsafe_allow_html=True)

@@ -18,6 +18,7 @@ st.markdown(context_box(
 findings_metadata = [
     {   'id': 1,
         'finding': 'Missing Initial Payment',
+        'finding_group': 'Missing Records',
         'description': 'Orders missing their first payment. Payment sequence starts at 2',
         'severity': 'Error',
         'teams': 'Accounting, Engineering',
@@ -25,6 +26,7 @@ findings_metadata = [
     },
     {   'id': 2,
         'finding': 'Invalid Payment Installment',
+        'finding_group': 'Business Rule Violation',
         'description': 'Credit card payments recorded with zero installments',
         'severity': 'Error',
         'teams': 'Accounting, Engineering',
@@ -32,6 +34,7 @@ findings_metadata = [
     },
     {   'id': 3,
         'finding': 'Delivery Before Carrier',
+        'finding_group': 'Timestamp Integrity',
         'description': 'Customer received order before carrier picked it up - logically impossible',
         'severity': 'Warning',
         'teams': 'Logistics, Engineering',
@@ -39,6 +42,7 @@ findings_metadata = [
     },
     {   'id': 4,
         'finding': 'Carrier Before Purchase',
+        'finding_group': 'Timestamp Integrity',
         'description': 'Carrier timestamp precedes purchase timestamp',
         'severity': 'Warning',
         'teams': 'Logistics, Engineering',
@@ -46,6 +50,7 @@ findings_metadata = [
     },
     {   'id': 5,
         'finding': 'Estimated Delivery Before Approval',
+        'finding_group': 'Timestamp Integrity',
         'description': 'Estimated Delivery Timestamp precedes approval timestamp',
         'severity': 'Error',
         'teams': 'Engineering',
@@ -53,6 +58,7 @@ findings_metadata = [
     },
     {   'id': 6,
         'finding': 'Review Created Before Purchase',
+        'finding_group': 'Timestamp Integrity',
         'description': 'Review created timestamp precedes purchase timestamp',
         'severity': 'Error',
         'teams': 'Customer Experience, Engineering',
@@ -60,6 +66,7 @@ findings_metadata = [
     },
     {   'id': 7,
         'finding': 'Missing Delivery Timestamp',
+        'finding_group': 'Missing Records',
         'description': 'Missing delivery timestamp for delivered orders',
         'severity': 'Error',
         'teams': 'Accounting, Engineering',
@@ -130,14 +137,12 @@ estimated_delivery_precede_approval_df = run_query("""
 review_precede_purchase_df = run_query("""
     SELECT 
         fore.order_id,
-        dc.customer_id,
+        fore.review_id,
         fore.review_created_timestamp,
         fo.order_purchase_timestamp
     FROM dev.main_facts.fact_orders fo
     JOIN dev.main_facts.fact_order_reviews fore
         ON fo.order_id = fore.order_id
-    JOIN dev.main_dims.dim_customers dc 
-        ON fo.customer_key = dc.customer_key
     WHERE DATE_DIFF('day',fo.order_purchase_timestamp, fore.review_created_timestamp) < 0
 """)
 
@@ -170,10 +175,23 @@ findings_metadata_df.drop(columns=['key'],inplace=True)
 findings_metadata_df = findings_metadata_df.rename(columns={
     'id': '#',
     'finding': 'Finding',
+    'finding_group': 'Finding Group',
     'description': 'Description',
     'severity': 'Severity',
     'teams': 'Impacted Teams'
 })
+
+def style_finding_group(val):
+    styles_severity = {
+        'Error':'color: #DC2626',
+        'Warning': 'color: #F59E0B'
+    }
+    return styles_severity.get(val, '')
+
+findings_metadata_df = findings_metadata_df.style.map(
+    style_finding_group, subset=['Severity']
+)
+
 st.subheader('Data Issues Summary')
 st.dataframe(findings_metadata_df, hide_index=True)
 
@@ -185,6 +203,45 @@ tab_timestamp, tab_missing, tab_business = st.tabs([
 ])
 
 with tab_timestamp:
+    # Finding 5: Estimated Before Approval
+    st.markdown(context_box(
+        f"""<strong>Finding 5: Estimated Delivery Before Approval</strong>
+        &mdash; {len(estimated_delivery_precede_approval_df)} orders.
+        Estimated delivery date already expired before payment was approved &mdash; promise was outdated at confirmation.
+        <br>
+        <strong>Impacted teams:</strong> Engineering""",
+        variant="failure"
+    ), unsafe_allow_html=True)
+    st.download_button(
+        label="Export to CSV",
+        data=estimated_delivery_precede_approval_df.to_csv(index=False),
+        file_name="estimated_delivery_before_approval.csv",
+        mime="text/csv",
+        key="export_finding_5"
+    )
+    st.dataframe(estimated_delivery_precede_approval_df, hide_index=True)
+    st.divider()
+
+    # Finding 6: Review Before Purchase
+    st.markdown(context_box(
+        f"""<strong>Finding 6: Review Created Before Purchase</strong>
+        &mdash; {len(review_precede_purchase_df)} orders.
+        Review submission timestamp precedes order creation &mdash; logically impossible.
+        <br>
+        <strong>Impacted teams:</strong> Customer Experience, Engineering""",
+        variant="failure"
+    ), unsafe_allow_html=True)
+    st.download_button(
+        label="Export to CSV",
+        data=review_precede_purchase_df.to_csv(index=False),
+        file_name="review_before_purchase.csv",
+        mime="text/csv",
+        key="export_finding_6"
+    )
+    st.dataframe(review_precede_purchase_df, hide_index=True)
+    st.divider()
+
+    # Finding 3: Delivery Before Carrier
     st.markdown(context_box(
         f"""<strong>Finding 3: Customer Delivery Before Carrier Handoff</strong>
         &mdash; {len(delivery_precede_carrier_df)} orders.
@@ -197,14 +254,17 @@ with tab_timestamp:
         label="Export to CSV",
         data=delivery_precede_carrier_df.to_csv(index=False),
         file_name="delivery_precede_carrier.csv",
-        mime="text/csv"
+        mime="text/csv",
+        key="export_finding_3"
     )
     st.dataframe(delivery_precede_carrier_df, hide_index=True)
+    st.divider()
 
+    # Finding 4: Carrier Before Purchase
     st.markdown(context_box(
         f"""<strong>Finding 4: Carrier Before Purchase</strong>
         &mdash; {len(carrier_precede_purchase_df)} orders.
-        Carrier handoff before customer place the order &mdash; logically impossible.
+        Carrier handoff recorded before the order was placed &mdash; logically impossible.
         <br>
         <strong>Impacted teams:</strong> Logistics, Engineering""",
         variant="warning"
@@ -213,22 +273,64 @@ with tab_timestamp:
         label="Export to CSV",
         data=carrier_precede_purchase_df.to_csv(index=False),
         file_name="carrier_before_purchase.csv",
-        mime="text/csv"
+        mime="text/csv",
+        key="export_finding_4"
     )
     st.dataframe(carrier_precede_purchase_df, hide_index=True)
 
+with tab_missing:
+    # Finding 1: Missing Initial Payment
     st.markdown(context_box(
-        f"""<strong>Finding 5: Estimated Delivery Before Approval</strong>
-        &mdash; {len(estimated_delivery_precede_approval_df)} orders.
-        The order should be delivered before payment approval &mdash; logically impossible.
+        f"""<strong>Finding 1: Missing Initial Payment</strong>
+        &mdash; {len(missing_initial_payment_df)} orders.
+        Orders missing the first payment transaction. Payment sequence start at 2.
         <br>
-        <strong>Impacted teams:</strong> Engineering""",
+        <strong>Impacted teams:</strong> Accounting, Engineering""",
         variant="failure"
     ), unsafe_allow_html=True)
     st.download_button(
         label="Export to CSV",
-        data=estimated_delivery_precede_approval_df.to_csv(index=False),
-        file_name="estimated_delivery_before_approval.csv",
-        mime="text/csv"
+        data=missing_initial_payment_df.to_csv(index=False),
+        file_name="missing_initial_payment.csv",
+        mime="text/csv",
+        key="export_finding_1"
     )
-    st.dataframe(estimated_delivery_precede_approval_df, hide_index=True)
+    st.dataframe(missing_initial_payment_df, hide_index=True)
+    st.divider()
+
+    # Finding 7: Missing Delivery Timestamp
+    st.markdown(context_box(
+        f"""<strong>Finding 7: Missing Delivery Timestamp</strong>
+        &mdash; {len(missing_delivery_timestamp_df)} orders.
+        Delivered orders missing delivery timestamp. Impossible to identify when the order was delivered.
+        <br>
+        <strong>Impacted teams:</strong> Accounting, Engineering""",
+        variant="failure"
+    ), unsafe_allow_html=True)
+    st.download_button(
+        label="Export to CSV",
+        data=missing_delivery_timestamp_df.to_csv(index=False),
+        file_name="missing_delivery_timestamp.csv",
+        mime="text/csv",
+        key="export_finding_7"
+    )
+    st.dataframe(missing_delivery_timestamp_df, hide_index=True)
+
+with tab_business:
+    # Finding 2: Invalid Payment Installment 
+    st.markdown(context_box(
+        f"""<strong>Finding 2: Invalid Credit Payment Installment</strong>
+        &mdash; {len(zero_installment_credit_payment_df)} orders.
+        Credit card payments recorded with zero installments &mdash; logically impossible
+        <br>
+        <strong>Impacted teams:</strong> Accounting, Engineering""",
+        variant="failure"
+    ), unsafe_allow_html=True)
+    st.download_button(
+        label="Export to CSV",
+        data=zero_installment_credit_payment_df.to_csv(index=False),
+        file_name="zero_installment_credit_payment.csv",
+        mime="text/csv",
+        key="export_finding_2"
+    )
+    st.dataframe(zero_installment_credit_payment_df, hide_index=True)
