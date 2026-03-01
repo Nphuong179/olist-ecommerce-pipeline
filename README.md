@@ -133,8 +133,7 @@ Each finding includes root cause analysis, business impact assessment, and recom
 This project uses the [Brazilian E-Commerce Public Dataset by Olist](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce), published on Kaggle. The dataset contains approximately 100,000 orders placed between September 2016 and August 2018 on the Olist marketplace, covering order status, pricing, payment, freight performance, customer location, product attributes, and customer reviews.
 
 ## Demo
-
-<video src="https://github.com/Nphuong179/olist-ecommerce-pipeline/releases/download/v1.0/2026-02-28.22-40-05.webm" controls width="100%"></video>
+<video src="https://github.com/user-attachments/assets/771501e6-ae06-48c6-a54b-8a4046c5f6cc" controls width="100%"></video>
 
 ## License
 
