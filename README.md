@@ -139,3 +139,4 @@ This project uses the [Brazilian E-Commerce Public Dataset by Olist](https://www
 ## License
 
 This project is built for educational and portfolio purposes using publicly available data.
+    
