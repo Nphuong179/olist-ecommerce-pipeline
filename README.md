@@ -82,7 +82,7 @@ The pipeline executes **180 dbt tests** across all layers. Seven data quality is
 
 Each finding includes root cause analysis, business impact assessment, and recommended remediation steps.
 
-### What I Have Learned Through The Project?
+## What I Have Learned Through The Project?
 
 - **Kimball dimensional modelling** - four-layer architecture (staging -> demensional -> fact -> mart), understanding why each layer exists and what belongs where.
 - **Type 2 Slowly Changing Dimensions with point-in-time joins** - tracking address history with validity periods, and correctly joining facts to the right dimension version using surrogate keys.
@@ -90,7 +90,7 @@ Each finding includes root cause analysis, business impact assessment, and recom
 - **Strategic data quality testing** - tests with intentional severity levels and conditional WHERE clauses; investigating anomalies to root cause and documenting findings with business impact for responsible teams.
 - **Designing dashboards around decisions, not descriptions** - every visualization should end with a concrete next step: which team should take action, what they look for. For example: the Failed Acquisition page doesn't just show orders got stuck, it traces each failure to the responsible team with specific investigation step.
 
-### What Could Be Improved?
+## What Could Be Improved?
 - **Geolocation + Freight Cost Analysis** - The At-Risk page already flags has_freight_burden customers, but it's just a flag without deeper investigation. The geolocation dataset would answer why freight is high (distance between seller and customer) and propose something actionable (recommend closer seller). This is the most natural extension because it fills a gap that already exists in the analysis.
 - **Seller Dashboard Page** - Right now the analysis shows "seller accountability: X orders" as an aggregate number, but it cannot answer "which sellers specifically?". The built mart_sellers could trace poor customer experience, which is exactly what the Operational Failures tab hints but cannot currently deliver.
 - **Cloud platform replacing DuckDB** - Migrate the analytical warehouse from local DuckDB to a cloud platform (BigQuery) to demonstrate cloud-based dbt workflows, manage access controls.
