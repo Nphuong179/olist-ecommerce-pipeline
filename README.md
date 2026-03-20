@@ -74,7 +74,7 @@ The pipeline follows **Kimball dimensional modeling** with four layers:
 
 ## Dashboard
 
-Five-page Streamlit + Plotly dashboard structured as a guided analytical narrative - see demo below.
+[Five-page Streamlit + Plotly dashboard](https://olist-customer-analytics.streamlit.app) structured as a guided analytical narrative - see demo below.
 
 ## Data Quality
 
