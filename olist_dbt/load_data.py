@@ -4,9 +4,10 @@ def main():
     # Get the project directory 
     project_root = Path(__file__).parent.parent
     data_dir = project_root/'data'/'raw'
-    PROJECT_ID = 'olist-portfolio-491906'
+    key_path = project_root / 'keys' / 'bq_service_account.json'
+    PROJECT_ID = 'olist-portfolio-492209'
     DATASET_ID = 'olist_raw'
-    client = bigquery.Client(project=PROJECT_ID)
+    client = bigquery.Client.from_service_account_json(str(key_path))
     csv_files = list(data_dir.glob('*.csv'))
     for csv_file in csv_files:
         table_name = csv_file.stem.replace('olist_', '').replace('_dataset', '')

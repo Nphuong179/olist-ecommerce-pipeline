@@ -18,7 +18,7 @@ at_risk_customer_df = run_query("""
         (has_delivery_issue OR has_stockout_issue) AS has_operational_issues,
         (has_promo_dependency OR has_freight_burden) AS has_economic_issues,
         total_issues
-    FROM `olist-portfolio-491906.olist_dbt_marts.mart_customer_value_growth`
+    FROM `olist-portfolio-492209.olist_dbt_marts.mart_customer_value_growth`
     WHERE lifecycle_stage LIKE '%_at_risk'
 """)
 
@@ -130,12 +130,12 @@ with tab_operational:
                 fo.order_id,
                 fo.order_status,
                 LOGICAL_AND(foi.met_shipping_deadline) AS all_met_shipping_deadline
-            FROM `olist-portfolio-491906.olist_dbt_dims.dim_customers` dc
-            LEFT JOIN `olist-portfolio-491906.olist_dbt_marts.mart_customer_value_growth` mcvg
+            FROM `olist-portfolio-492209.olist_dbt_dims.dim_customers` dc
+            LEFT JOIN `olist-portfolio-492209.olist_dbt_marts.mart_customer_value_growth` mcvg
                 ON dc.customer_id = mcvg.customer_id
-            JOIN `olist-portfolio-491906.olist_dbt_facts.fact_orders` fo
+            JOIN `olist-portfolio-492209.olist_dbt_facts.fact_orders` fo
                 ON dc.customer_key = fo.customer_key
-            LEFT JOIN `olist-portfolio-491906.olist_dbt_facts.fact_order_items` foi
+            LEFT JOIN `olist-portfolio-492209.olist_dbt_facts.fact_order_items` foi
                 ON fo.order_id = foi.order_id
             WHERE (mcvg.has_delivery_issue = TRUE OR mcvg.has_stockout_issue = TRUE)
                 AND (fo.delivered_on_time = FALSE OR fo.order_status = 'unavailable') 
@@ -250,12 +250,12 @@ with tab_quality:
                 forv.is_rating_only,
                 mcvg.customer_id,
                 forv.review_score
-            FROM `olist-portfolio-491906.olist_dbt_facts.fact_order_reviews` forv
-            JOIN `olist-portfolio-491906.olist_dbt_facts.fact_orders` fo 
+            FROM `olist-portfolio-492209.olist_dbt_facts.fact_order_reviews` forv
+            JOIN `olist-portfolio-492209.olist_dbt_facts.fact_orders` fo 
                 ON forv.order_id = fo.order_id 
-            JOIN `olist-portfolio-491906.olist_dbt_dims.dim_customers` dc 
+            JOIN `olist-portfolio-492209.olist_dbt_dims.dim_customers` dc 
                 ON fo.customer_key = dc.customer_key 
-            JOIN `olist-portfolio-491906.olist_dbt_marts.mart_customer_value_growth` mcvg 
+            JOIN `olist-portfolio-492209.olist_dbt_marts.mart_customer_value_growth` mcvg 
                 ON dc.customer_id = mcvg.customer_id 
             WHERE mcvg.lifecycle_stage LIKE '%_at_risk'
                 AND forv.review_score <= 3
@@ -387,7 +387,7 @@ with tab_economic:
                     PERCENTILE_CONT(avg_nmv_per_order, 0.5) OVER() AS p50,
                     PERCENTILE_CONT(avg_nmv_per_order, 0.75) OVER() AS p75,
                     PERCENTILE_CONT(avg_nmv_per_order, 0.95) OVER() AS p95 
-                FROM `olist-portfolio-491906.olist_dbt_marts.mart_customer_value_growth`
+                FROM `olist-portfolio-492209.olist_dbt_marts.mart_customer_value_growth`
                 WHERE lifecycle_stage LIKE '%_at_risk'
                     AND has_promo_dependency = TRUE
                 )
@@ -403,7 +403,7 @@ with tab_economic:
             ROUND(MIN(avg_nmv_per_order), 1) AS min_nmv,
             ROUND(MAX(avg_nmv_per_order), 1) AS max_nmv,
             ROUND(AVG(avg_nmv_per_order), 1) AS avg_nmv_in_tier
-        FROM `olist-portfolio-491906.olist_dbt_marts.mart_customer_value_growth`
+        FROM `olist-portfolio-492209.olist_dbt_marts.mart_customer_value_growth`
         CROSS JOIN avg_nmv_percentiles
         WHERE lifecycle_stage LIKE '%_at_risk'
             AND has_promo_dependency = TRUE
@@ -517,7 +517,7 @@ with tab_economic:
 
 one_time_new_count_df = run_query("""
     SELECT COUNT(DISTINCT customer_id) AS customer_count
-    FROM `olist-portfolio-491906.olist_dbt_marts.mart_customer_lifecycle`
+    FROM `olist-portfolio-492209.olist_dbt_marts.mart_customer_lifecycle`
     WHERE lifecycle_stage = 'one_time_new'
 """)
 one_time_new_count = int(one_time_new_count_df['customer_count'].iloc[0])

@@ -18,7 +18,7 @@ context_df = run_query("""
         SUM(CASE WHEN delivered_orders > 1 THEN 1 ELSE 0 END) AS repeat_customers,
         SUM(total_nmv) AS total_revenue,
         SUM(CASE WHEN delivered_orders > 1 THEN total_nmv ELSE 0 END) AS repeat_revenue
-    FROM `olist-portfolio-491906.olist_dbt_marts.mart_customers_base`
+    FROM `olist-portfolio-492209.olist_dbt_marts.mart_customers_base`
 """)
 
 total_customers = int(context_df['total_customers'].iloc[0])
@@ -131,7 +131,7 @@ hierarchy_df = run_query("""
                 WHEN lifecycle_stage IN ('one_time_new', 'repeat_active') 
                     THEN 'Active & Growth'
             END AS action_category
-        FROM `olist-portfolio-491906.olist_dbt_marts.mart_customer_lifecycle`
+        FROM `olist-portfolio-492209.olist_dbt_marts.mart_customer_lifecycle`
     )
     SELECT 
         action_category,
@@ -242,7 +242,7 @@ with col_analytics:
         SELECT 
             COUNT(DISTINCT customer_id) AS num_customers,
             ROUND(AVG(avg_review_score), 2) AS avg_review
-        FROM `olist-portfolio-491906.olist_dbt_marts.mart_customers_base`
+        FROM `olist-portfolio-492209.olist_dbt_marts.mart_customers_base`
         WHERE delivered_orders = 0
     """)
 
@@ -286,8 +286,8 @@ with col_analytics:
             ROUND(AVG(mcb.total_nmv), 2) AS avg_nmv,
             ROUND(AVG(CASE WHEN mcb.avg_review_score IS NOT NULL 
                        THEN mcb.avg_review_score END), 2) AS avg_review
-        FROM `olist-portfolio-491906.olist_dbt_marts.mart_customers_base` mcb
-        JOIN `olist-portfolio-491906.olist_dbt_marts.mart_customer_lifecycle` mcl
+        FROM `olist-portfolio-492209.olist_dbt_marts.mart_customers_base` mcb
+        JOIN `olist-portfolio-492209.olist_dbt_marts.mart_customer_lifecycle` mcl
             ON mcb.customer_id = mcl.customer_id
         WHERE mcl.lifecycle_stage IN ('one_time_at_risk', 'repeat_at_risk', 'repeat_lapsed')
     """)
@@ -331,8 +331,8 @@ with col_analytics:
             ROUND(AVG(mcb.total_nmv), 2) AS avg_nmv,
             ROUND(AVG(CASE WHEN mcb.avg_review_score IS NOT NULL 
                        THEN mcb.avg_review_score END), 2) AS avg_review
-        FROM `olist-portfolio-491906.olist_dbt_marts.mart_customers_base` mcb
-        JOIN `olist-portfolio-491906.olist_dbt_marts.mart_customer_lifecycle` mcl
+        FROM `olist-portfolio-492209.olist_dbt_marts.mart_customers_base` mcb
+        JOIN `olist-portfolio-492209.olist_dbt_marts.mart_customer_lifecycle` mcl
             ON mcb.customer_id = mcl.customer_id
         WHERE mcl.lifecycle_stage IN ('one_time_new', 'repeat_active')
     """)
