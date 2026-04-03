@@ -13,10 +13,10 @@ SELECT
     COUNT(distinct mcb.customer_id) as total_failed,
     ROUND(SUM(item_price)) as lost_revenue,
     ROUND(AVG(days_since_last_order), 0) as avg_days_since
-FROM dev.main_marts.mart_customers_base mcb
-LEFT JOIN dev.main_dims.dim_customers dc
+FROM `olist-portfolio-491906.olist_dbt_marts.mart_customers_base` mcb
+LEFT JOIN `olist-portfolio-491906.olist_dbt_dims.dim_customers` dc
     ON mcb.customer_id = dc.customer_id
-LEFT JOIN dev.main_facts.fact_order_items foi
+LEFT JOIN `olist-portfolio-491906.olist_dbt_facts.fact_order_items` foi
     ON dc.customer_key = foi.customer_key
 WHERE mcb.delivered_orders = 0
 """)
@@ -81,7 +81,7 @@ SELECT
     COUNT(*) as customer_count,
     SUM(total_nmv) as lost_revenue,
     ROUND(AVG(days_since_last_order), 0) as avg_days_stuck
-FROM dev.main_marts.mart_customers_base
+FROM `olist-portfolio-491906.olist_dbt_marts.mart_customers_base`
 WHERE delivered_orders = 0
 GROUP BY latest_order_status
 ORDER BY customer_count DESC
@@ -339,13 +339,13 @@ st.subheader("Pipeline Failure Over Time")
 
 trend_df = run_query("""
     SELECT 
-        DATE_TRUNC('month', fo.order_purchase_timestamp) AS order_month,
+        DATE_TRUNC(fo.order_purchase_timestamp, MONTH) AS order_month,
         fo.order_status,
         COUNT(DISTINCT dc.customer_id) AS failed_customers
-    FROM dev.main_marts.mart_customers_base mcb
-    JOIN dev.main_dims.dim_customers dc
+    FROM `olist-portfolio-491906.olist_dbt_marts.mart_customers_base` mcb
+    JOIN `olist-portfolio-491906.olist_dbt_dims.dim_customers` dc
         ON mcb.customer_id = dc.customer_id
-    JOIN dev.main_facts.fact_orders fo
+    JOIN `olist-portfolio-491906.olist_dbt_facts.fact_orders` fo
         ON dc.customer_key = fo.customer_key
     WHERE mcb.delivered_orders = 0
         AND fo.order_purchase_timestamp < '2018-09-01'
@@ -415,7 +415,7 @@ at steady rates across the entire period &mdash; suggesting systemic issues rath
 
 at_risk_count_df = run_query("""
     SELECT COUNT(DISTINCT customer_id) AS customer_count
-    FROM dev.main_marts.mart_customer_value_growth
+    FROM `olist-portfolio-491906.olist_dbt_marts.mart_customer_value_growth`
     WHERE lifecycle_stage LIKE '%_at_risk'
         AND total_issues > 0
 """)

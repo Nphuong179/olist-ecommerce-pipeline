@@ -80,11 +80,11 @@ missing_initial_payment_df = run_query("""
         payment_transaction_number,
         payment_type,
         payment_value
-    FROM dev.main_facts.fact_order_payments
+    FROM `olist-portfolio-491906.olist_dbt_facts.fact_order_payments`
     WHERE order_id IN (
         SELECT
             order_id
-        FROM dev.main_facts.fact_order_payments
+        FROM `olist-portfolio-491906.olist_dbt_facts.fact_order_payments`
         GROUP BY order_id
         HAVING MIN(payment_transaction_number) <> 1)
     ORDER BY order_id ASC, payment_transaction_number ASC
@@ -96,9 +96,9 @@ zero_installment_credit_payment_df = run_query("""
         payment_type,
         payment_installments,
         payment_value
-    FROM dev.main_facts.fact_order_payments WHERE order_id IN (
+    FROM `olist-portfolio-491906.olist_dbt_facts.fact_order_payments` WHERE order_id IN (
         SELECT order_id
-        FROM dev.main_facts.fact_order_payments
+        FROM `olist-portfolio-491906.olist_dbt_facts.fact_order_payments`
         WHERE payment_type = 'credit_card'
             AND payment_installments < 1)
 """)
@@ -110,7 +110,7 @@ delivery_precede_carrier_df = run_query("""
         order_delivered_carrier_timestamp,
         order_delivered_customer_timestamp,
         hours_in_transit 
-    FROM dev.main_facts.fact_orders where hours_in_transit < 0
+    FROM `olist-portfolio-491906.olist_dbt_facts.fact_orders` where hours_in_transit < 0
 """)
 
 carrier_precede_purchase_df = run_query("""
@@ -120,7 +120,7 @@ carrier_precede_purchase_df = run_query("""
         order_purchase_timestamp,
         order_delivered_carrier_timestamp,
         hours_to_carrier 
-    FROM dev.main_facts.fact_orders 
+    FROM `olist-portfolio-491906.olist_dbt_facts.fact_orders`
     WHERE hours_to_carrier < 0
 """)
 
@@ -130,7 +130,7 @@ estimated_delivery_precede_approval_df = run_query("""
         order_status,
         order_approved_timestamp,
         order_estimated_delivery_date
-    FROM dev.main_facts.fact_orders 
+    FROM `olist-portfolio-491906.olist_dbt_facts.fact_orders`
     WHERE order_estimated_delivery_date < order_approved_timestamp
 """)
 
@@ -140,10 +140,10 @@ review_precede_purchase_df = run_query("""
         fore.review_id,
         fore.review_created_timestamp,
         fo.order_purchase_timestamp
-    FROM dev.main_facts.fact_orders fo
-    JOIN dev.main_facts.fact_order_reviews fore
+    FROM `olist-portfolio-491906.olist_dbt_facts.fact_orders` fo
+    JOIN `olist-portfolio-491906.olist_dbt_facts.fact_order_reviews` fore
         ON fo.order_id = fore.order_id
-    WHERE DATE_DIFF('day',fo.order_purchase_timestamp, fore.review_created_timestamp) < 0
+    WHERE TIMESTAMP_DIFF(fore.review_created_timestamp, fo.order_purchase_timestamp, DAY) < 0
 """)
 
 missing_delivery_timestamp_df = run_query("""
@@ -153,7 +153,7 @@ missing_delivery_timestamp_df = run_query("""
         order_purchase_timestamp,
         order_delivered_carrier_timestamp,
         order_delivered_customer_timestamp 
-    FROM dev.main_facts.fact_orders
+    FROM `olist-portfolio-491906.olist_dbt_facts.fact_orders`
     WHERE order_status = 'delivered'
         AND order_delivered_customer_timestamp IS NULL
 """)

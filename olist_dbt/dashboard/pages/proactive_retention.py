@@ -17,15 +17,15 @@ repeat_interval_df = run_query("""
             fo.order_id,
             fo.order_purchase_timestamp,
             ROW_NUMBER() OVER(PARTITION BY dc.customer_id ORDER BY fo.order_purchase_timestamp ASC) AS order_sequence
-        FROM dev.main_dims.dim_customers dc 
-        JOIN dev.main_marts.mart_customer_lifecycle mcl 
+        FROM `olist-portfolio-491906.olist_dbt_dims.dim_customers` dc 
+        JOIN `olist-portfolio-491906.olist_dbt_marts.mart_customer_lifecycle` mcl 
             ON dc.customer_id = mcl.customer_id
-        LEFT JOIN dev.main_facts.fact_orders fo
+        LEFT JOIN `olist-portfolio-491906.olist_dbt_facts.fact_orders` fo
             ON dc.customer_key = fo.customer_key
         WHERE mcl.lifecycle_stage like 'repeat%')
     SELECT 
         customer_id,
-        DATE_DIFF('day',min(order_purchase_timestamp), max(order_purchase_timestamp)) AS days_to_second_order
+        TIMESTAMP_DIFF(max(order_purchase_timestamp), min(order_purchase_timestamp),DAY) AS days_to_second_order
     FROM customer_order_sequence
     WHERE order_sequence <= 2
     GROUP BY customer_id
@@ -36,8 +36,8 @@ one_time_new_df = run_query("""
     SELECT
         mcb.customer_id,
         mcb.days_since_last_order
-    FROM dev.main_marts.mart_customer_lifecycle mcl 
-    JOIN dev.main_marts.mart_customers_base mcb 
+    FROM `olist-portfolio-491906.olist_dbt_marts.mart_customer_lifecycle` mcl 
+    JOIN `olist-portfolio-491906.olist_dbt_marts.mart_customers_base` mcb 
         ON mcl.customer_id = mcb.customer_id
     WHERE mcl.lifecycle_stage = 'one_time_new'
 """)
@@ -49,8 +49,8 @@ one_time_nmv_df = run_query("""
         mcb.customer_id,
         mcl.recovery_priority_score,
         mcb.total_nmv
-    FROM dev.main_marts.mart_customers_base mcb 
-    JOIN dev.main_marts.mart_customer_lifecycle mcl 
+    FROM `olist-portfolio-491906.olist_dbt_marts.mart_customers_base` mcb 
+    JOIN `olist-portfolio-491906.olist_dbt_marts.mart_customer_lifecycle` mcl 
         ON mcb.customer_id = mcl.customer_id
     WHERE mcl.lifecycle_stage = 'one_time_new'
 """)
