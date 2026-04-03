@@ -5,10 +5,10 @@ SELECT
     TRIM(customer_id) AS order_customer_id, -- Links to customers
     TRIM(order_status) AS order_status,
 
-    order_purchase_timestamp::TIMESTAMP AS order_purchase_timestamp,
-    order_approved_at::TIMESTAMP AS order_approved_timestamp,
-    order_delivered_carrier_date::TIMESTAMP AS order_delivered_carrier_timestamp,
-    order_delivered_customer_date::TIMESTAMP AS order_delivered_customer_timestamp,
-    order_estimated_delivery_date::DATE AS order_estimated_delivery_date
+    CAST(order_purchase_timestamp AS TIMESTAMP) AS order_purchase_timestamp,
+    CAST(order_approved_at AS TIMESTAMP) AS order_approved_timestamp,
+    CAST(order_delivered_carrier_date AS TIMESTAMP) AS order_delivered_carrier_timestamp,
+    CAST(order_delivered_customer_date AS TIMESTAMP) AS order_delivered_customer_timestamp,
+    CAST(order_estimated_delivery_date AS DATE) AS order_estimated_delivery_date
 
-FROM {{ source("raw", "raw_orders") }}
+FROM {{ source("raw", "orders") }}

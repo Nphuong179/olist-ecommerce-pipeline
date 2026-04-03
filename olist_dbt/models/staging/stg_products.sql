@@ -16,4 +16,4 @@ SELECT
     product_width_cm AS width_cm,
     product_height_cm AS height_cm
 
-FROM {{ source("raw", "raw_products") }}
+FROM {{ source("raw", "products") }}

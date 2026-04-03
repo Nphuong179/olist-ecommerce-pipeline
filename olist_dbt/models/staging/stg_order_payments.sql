@@ -5,6 +5,6 @@ SELECT
     payment_sequential AS payment_transaction_number, -- Renaming for the clearer name
     TRIM(payment_type) AS payment_type,
     payment_installments AS payment_installments,
-    payment_value::DECIMAL(10,2) AS payment_value
+    CAST(payment_value AS NUMERIC) AS payment_value
 
-FROM {{ source("raw", "raw_order_payments") }}
+FROM {{ source("raw", "order_payments") }}

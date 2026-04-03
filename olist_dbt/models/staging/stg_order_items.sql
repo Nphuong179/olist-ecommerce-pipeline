@@ -6,9 +6,9 @@ SELECT
     TRIM(product_id) AS product_id,
     TRIM(seller_id) AS seller_id,
 
-    shipping_limit_date::TIMESTAMP AS shipping_limit_timestamp,
+    CAST(shipping_limit_date AS TIMESTAMP) shipping_limit_timestamp,
 
-    price::DECIMAL(10,2) AS price,
-    freight_value::DECIMAL(10,2) AS freight_value
+    CAST(price AS NUMERIC) AS price,
+    CAST(freight_value AS NUMERIC) AS freight_value
     
-FROM {{ source("raw","raw_order_items") }}
+FROM {{ source("raw","order_items") }}

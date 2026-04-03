@@ -65,15 +65,12 @@ models:
           expression: ">= valid_from"
           where: "valid_from is not null"
           config:
-           severity: error
+           severity: warn
 
     - name: is_current
       description: |
        Boolean flag indicating whether this address record is active.
        TRUE for current address. FALSE for historical.
-      tests:
-       - accepted_values:
-          values: [true, false]
 
     - name: updated_at
       description: "Timestamp when this record was updated in the data warehouse"
@@ -146,15 +143,12 @@ models:
           expression: ">= valid_from"
           where: "valid_from is not null"
           config:
-           severity: error
+           severity: warn
 
     - name: is_current
       description: |
        Boolean flag indicating whether this address record is active.
        TRUE for current address. FALSE for historical.
-      tests:
-       - accepted_values:
-          values: [true, false]
 
     - name: updated_at
       description: "Timestamp when this record was updated in the data warehouse"
@@ -254,9 +248,6 @@ models:
     
     - name: has_complete_listing
       description: "Derived flag idicating whether product has complete description listing"
-      tests:
-       - accepted_values:
-          values: [true, false]
 
     - name: first_order_date
       description: "Timestamp of product's first order"

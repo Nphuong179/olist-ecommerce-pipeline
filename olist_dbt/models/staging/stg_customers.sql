@@ -5,8 +5,8 @@ SELECT
     TRIM(customer_unique_id) AS customer_id, -- Actual customer indentifier
 
     -- Address reference: Remove redundant prefix
-    TRIM(customer_zip_code_prefix) AS zip_code_prefix,
+    CAST(customer_zip_code_prefix AS STRING) AS zip_code_prefix,
     TRIM(customer_city) AS city,
     TRIM(customer_state) AS state
 
-FROM {{ source("raw", "raw_customers") }}
+FROM {{ source("raw", "customers") }}

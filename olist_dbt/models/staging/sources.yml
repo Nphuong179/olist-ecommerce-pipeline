@@ -2,14 +2,14 @@ version: 2
 sources: 
   - name: raw
     description: "Raw data loaded from CSV files"
-    database: dev
-    schema: main
+    database: olist-portfolio-491906
+    schema: olist_raw
     tables:
-      - name: raw_customers
-      - name: raw_products
-      - name: raw_sellers
-      - name: raw_order_items 
-      - name: raw_order_payments
-      - name: raw_orders
-      - name: raw_order_reviews
-      - name: raw_product_category_name_translation
+      - name: customers
+      - name: products
+      - name: sellers
+      - name: order_items 
+      - name: order_payments
+      - name: orders
+      - name: order_reviews
+      - name: product_category_name_translation

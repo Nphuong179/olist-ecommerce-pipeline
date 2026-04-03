@@ -28,13 +28,13 @@ SELECT
     -- Derived metrics: Shipping performance
     CASE 
         WHEN soi.shipping_limit_timestamp IS NOT NULL
-        THEN DATE_DIFF('hour', so.order_purchase_timestamp, soi.shipping_limit_timestamp) 
+        THEN TIMESTAMP_DIFF(soi.shipping_limit_timestamp, so.order_purchase_timestamp, HOUR) 
     END AS hours_to_shipping_limit,
 
     CASE
         WHEN so.order_delivered_carrier_timestamp IS NOT NULL
             AND soi.shipping_limit_timestamp IS NOT NULL
-        THEN DATE_DIFF('hour', soi.shipping_limit_timestamp, so.order_delivered_carrier_timestamp)
+        THEN TIMESTAMP_DIFF(soi.shipping_limit_timestamp, so.order_delivered_carrier_timestamp, HOUR)
     END AS hours_past_shipping_limit,
 
     CASE

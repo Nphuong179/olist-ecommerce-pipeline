@@ -1,23 +1,25 @@
-import duckdb
+from google.cloud import bigquery
 from pathlib import Path
-print("FILE IS BEING READ!")
 def main():
     # Get the project directory 
     project_root = Path(__file__).parent.parent
     data_dir = project_root/'data'/'raw'
-    db_path = project_root/'olist_dbt'/'dev.duckdb'
-
+    PROJECT_ID = 'olist-portfolio-491906'
+    DATASET_ID = 'olist_raw'
+    client = bigquery.Client(project=PROJECT_ID)
     csv_files = list(data_dir.glob('*.csv'))
-    conn = duckdb.connect(db_path)
     for csv_file in csv_files:
-        file_name = csv_file.stem.replace('olist_','raw_').replace('_dataset','')
-        conn.execute(f"""
-            CREATE OR REPLACE TABLE {file_name} AS
-            SELECT * FROM read_csv_auto('{csv_file}')
-                    """)
-        
-    conn.close()
-    print("All table loaded successfully")
+        table_name = csv_file.stem.replace('olist_', '').replace('_dataset', '')
+        table_id = f'{PROJECT_ID}.{DATASET_ID}.{table_name}'
+        job_config = bigquery.LoadJobConfig(
+            source_format=bigquery.SourceFormat.CSV,
+            skip_leading_rows=1,
+            autodetect=1,
+            write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE
+        )
 
-if __name__ == "__main__":
+        with open(csv_file, 'rb') as f:
+            job = client.load_table_from_file(f, table_id, job_config=job_config)
+            job.result()
+if __name__ == '__main__':
     main()

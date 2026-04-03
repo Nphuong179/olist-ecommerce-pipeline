@@ -12,7 +12,7 @@ WITH
         SELECT
             dc.customer_id,
             COUNT(fo.order_id) AS delivered_orders,
-            SUM(CASE WHEN fo.delivered_on_time THEN 1 ELSE 0 END)::FLOAT 
+            CAST(SUM(CASE WHEN fo.delivered_on_time THEN 1 ELSE 0 END) AS FLOAT64)
                 / NULLIF(SUM(CASE WHEN fo.delivered_on_time IS NOT NULL THEN 1 ELSE 0 END), 0) AS on_time_delivery_rate,
             SUM(fo.total_price) AS total_nmv,
             SUM(fo.total_price) / COUNT(fo.order_id) AS avg_nmv_per_order
@@ -31,7 +31,7 @@ WITH
             fo.order_status,
             fo.order_purchase_timestamp,
             ROW_NUMBER() OVER(PARTITION BY dc.customer_id ORDER BY fo.order_purchase_timestamp DESC) AS order_recency,
-            ROW_NUMBER() OVER(PARTITION BY dc.customer_id ORDER BY fo.order_purchase_timestamp ASC) AS order_sequence
+            ROW_NUMBER() OVER(PARTITION BY dc.customer_id ORDER BY fo.order_purchase_timestamp ASC) AS order_rank
         FROM {{ ref("dim_customers") }} dc
         LEFT JOIN {{ ref("fact_orders") }} fo
             ON dc.customer_key = fo.customer_key
@@ -50,7 +50,7 @@ WITH
             customer_id,
             order_id AS first_order_id
         FROM order_sequence
-        WHERE order_sequence = 1
+        WHERE order_rank = 1
     ),
 
     -- Customer engagement across all order attempts
@@ -62,12 +62,12 @@ WITH
             MAX(fo.order_purchase_timestamp) AS latest_order_date,
             CASE
                 WHEN COUNT(fo.order_id) > 1
-                THEN DATE_DIFF('day', MIN(fo.order_purchase_timestamp), MAX(fo.order_purchase_timestamp))::FLOAT
+                THEN CAST(TIMESTAMP_DIFF(MAX(fo.order_purchase_timestamp), MIN(fo.order_purchase_timestamp), DAY) AS FLOAT64)
                     / NULLIF(COUNT(fo.order_id) - 1, 0)
                 END AS avg_days_between_orders,
-            COUNT(CASE WHEN fo.order_status = 'canceled' THEN 1 END)::FLOAT
+            CAST(COUNT(CASE WHEN fo.order_status = 'canceled' THEN 1 END) AS FLOAT64)
                 / NULLIF(COUNT(fo.order_id), 0) AS order_cancellation_rate,
-            COUNT(CASE WHEN fo.order_status = 'unavailable' THEN 1 END)::FLOAT
+            CAST(COUNT(CASE WHEN fo.order_status = 'unavailable' THEN 1 END) AS FLOAT64)
                 / NULLIF(COUNT(fo.order_id),0) AS unavailable_rate
         FROM {{ ref("dim_customers") }} dc
         JOIN {{ ref("fact_orders") }} fo
@@ -97,7 +97,7 @@ WITH
         SELECT
             dc.customer_id,
             -- Review participation rate: % of orders with reviews
-            COUNT(DISTINCT CASE WHEN fore.review_score IS NOT NULL THEN fo.order_id END)::FLOAT
+            CAST(COUNT(DISTINCT CASE WHEN fore.review_score IS NOT NULL THEN fo.order_id END) AS FLOAT64)
                 / NULLIF(COUNT(DISTINCT fo.order_id),0) AS review_participation_rate,
             -- Average review score: Satisfaction indicator (1-5 scale)
             -- NULL if customer never left a review
@@ -141,7 +141,7 @@ WITH
             cpc.payment_type,
             cpc.orders_using_payment,
             cto.total_orders,
-            cpc.orders_using_payment::FLOAT / NULLIF(cto.total_orders,0) AS payment_share,
+            CAST(cpc.orders_using_payment AS FLOAT64) / NULLIF(cto.total_orders,0) AS payment_share,
             ROW_NUMBER() OVER(
                 PARTITION BY cpc.customer_id 
                 ORDER BY cpc.orders_using_payment DESC, cpc.payment_type ASC
@@ -159,9 +159,9 @@ WITH
             total_orders,
         -- Classify consistency
             CASE
-                WHEN preferred_payment_share >= 0.9 THEN 'highly_consistent'
-                WHEN preferred_payment_share >= 0.7 THEN 'somewhat_consistent'
-                WHEN preferred_payment_share >= 0.5 THEN 'multi_method_user'
+                WHEN payment_share >= 0.9 THEN 'highly_consistent'
+                WHEN payment_share >= 0.7 THEN 'somewhat_consistent'
+                WHEN payment_share >= 0.5 THEN 'multi_method_user'
                 ELSE 'payment_explorer'
             END AS payment_consistency_profile
         FROM customer_payment_ranked
@@ -173,9 +173,9 @@ WITH
             dc.customer_id,
             AVG(CASE WHEN fop.payment_type = 'credit_card' THEN fop.payment_installments END) AS avg_installments_when_using_credit,
             MAX(CASE WHEN fop.payment_type = 'credit_card' THEN fop.payment_installments END) AS max_installments_used,
-            COUNT(DISTINCT CASE WHEN fop.is_only_payment = FALSE THEN fo.order_id END)::FLOAT 
+            CAST(COUNT(DISTINCT CASE WHEN fop.is_only_payment = FALSE THEN fo.order_id END) AS FLOAT64)
                 / NULLIF(COUNT(DISTINCT fo.order_id),0) AS mixed_payment_rate,
-            SUM(CASE WHEN fop.payment_type = 'voucher' THEN fop.payment_value END)::FLOAT
+            CAST(SUM(CASE WHEN fop.payment_type = 'voucher' THEN fop.payment_value END) AS FLOAT64)
                 / NULLIF(SUM(fop.payment_value),0) AS voucher_using_rate
         FROM {{ ref('dim_customers') }} dc
         JOIN {{ ref("fact_orders") }} fo
@@ -199,7 +199,7 @@ SELECT
     -- Order Timing
     cbm.first_order_date,
     cbm.latest_order_date, 
-    DATE_DIFF('day', cbm.latest_order_date, rd.analysis_date) AS days_since_last_order,
+    TIMESTAMP_DIFF(CAST(rd.analysis_date AS TIMESTAMP), cbm.latest_order_date, DAY) AS days_since_last_order,
 
     -- Order Quality
     cbm.order_cancellation_rate,

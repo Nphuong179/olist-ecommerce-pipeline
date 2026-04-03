@@ -33,13 +33,13 @@ SELECT
     CASE
         WHEN so.order_delivered_customer_timestamp IS NOT NULL
             AND sor.review_created_timestamp IS NOT NULL
-        THEN DATE_DIFF('day', so.order_delivered_customer_timestamp, sor.review_created_timestamp)
+        THEN TIMESTAMP_DIFF(sor.review_created_timestamp, so.order_delivered_customer_timestamp, DAY)
     END AS days_from_delivery_to_review,
 
     -- Derived metrics: Response behavior
     CASE
         WHEN sor.review_answer_timestamp IS NOT NULL
-        THEN DATE_DIFF('hour', sor.review_created_timestamp, sor.review_answer_timestamp)
+        THEN TIMESTAMP_DIFF(sor.review_answer_timestamp, sor.review_created_timestamp, HOUR)
     END AS hours_to_seller_response,
 
     -- Derived flags: Response behavior
@@ -51,7 +51,7 @@ SELECT
 
     CASE
         WHEN sor.review_answer_timestamp IS NOT NULL
-            AND DATE_DIFF('hour', sor.review_created_timestamp, sor.review_answer_timestamp) <= 24
+            AND TIMESTAMP_DIFF(sor.review_answer_timestamp, sor.review_created_timestamp, HOUR) <= 24
         THEN TRUE
         ELSE FALSE
     END AS is_fast_response,

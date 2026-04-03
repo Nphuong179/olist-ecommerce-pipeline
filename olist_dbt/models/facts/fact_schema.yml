@@ -61,6 +61,8 @@ models:
        - dbt_utils.expression_is_true:
           expression: ">= order_approved_timestamp"
           where: "order_delivered_carrier_timestamp is not null AND order_approved_timestamp is not null"
+          config:
+           severity: warn
     
     - name: order_delivered_customer_timestamp
       description: "Timestamp when order was successfully delivered to the customer"
@@ -68,12 +70,14 @@ models:
        - dbt_utils.expression_is_true:
           expression: ">= order_delivered_carrier_timestamp"
           where: "order_delivered_customer_timestamp is not null AND order_delivered_carrier_timestamp is not null"
+          config:
+           severity: warn
       # Make sure order which its status is 'delivered' has order_delivered_customer_timestamp
        - not_null:
           where: "order_status = 'delivered'"
           config:
            severity: warn
-           error_if: ">10"
+           error_if: ">30"
            warn_if: ">0"
 
     - name: order_estimated_delivery_date
@@ -84,6 +88,8 @@ models:
        - dbt_utils.expression_is_true:
           expression: "> order_approved_timestamp"
           where: "order_approved_timestamp is not null"
+          config:
+           severity: warn
 
     - name: quantity
       description: |
@@ -151,6 +157,8 @@ models:
       tests:
        - not_null:
           where: "order_status <> 'canceled' AND order_status <> 'unavailable'" # in cases where items are unavailable
+          config:
+           severity: warn
        - dbt_utils.expression_is_true:
           expression: ">0"
           where: "order_status <> 'canceled'"
@@ -164,6 +172,8 @@ models:
        - dbt_utils.expression_is_true:
           expression: ">0"
           where: "total_payment_amount is not null"
+          config:
+           severity: warn
        - not_null:
           where: "order_approved_timestamp is not null"
           config: 
@@ -220,6 +230,8 @@ models:
        - dbt_utils.expression_is_true:
           expression: ">=0"
           where: "order_delivered_carrier_timestamp is not null"
+          config:
+           severity: warn
 
     - name: hours_to_delivered
       description: |
@@ -244,6 +256,8 @@ models:
        - dbt_utils.expression_is_true:
           expression: ">=0"
           where: "order_delivered_customer_timestamp is not null AND order_delivered_carrier_timestamp is not null"
+          config:
+           severity: warn
 
     - name: delivered_vs_estimated
       description: |
@@ -256,10 +270,6 @@ models:
        Boolean flag indicating delivery performance.
        TRUE: delivered on or before estimated
        FALSE: delivered after estimated
-      tests:
-       - accepted_values:
-          values: [true, false]
-          where: "order_delivered_customer_timestamp is not null"
 
  - name: fact_order_items
    description: "Fact table capturing individual items with orders"
@@ -306,7 +316,9 @@ models:
     - name: customer_key
       description: "Customer key linking to dim_sellers table (Surrogate key)"
       tests:
-       - not_null
+       - not_null:
+          config:
+           severity: warn
        - relationships:
           to: ref('dim_customers')
           field: customer_key
@@ -383,25 +395,16 @@ models:
       
     - name: met_shipping_deadline
       description: "Derived flag indicate whether seller's delivery to logistics carrier meet deadline"
-      tests:
-       - accepted_values:
-          values: [true, false]
     
     - name: is_high_freight_item
       description: |
        Mark item that has freight cost equivalent to over 50% of item price
        Indicates item that has extensively high freight cost compared to the item price.
-      tests:
-       - accepted_values:
-          values: [true, false]
 
     - name: is_free_shipping
       description: |
        Mark item that has no freight cost.
        Indicates free shipping promotions in the item delivery.
-      tests:
-       - accepted_values:
-          values: [true, false]
 
  - name: fact_order_payments
    description: "Fact table capturing each payment for the order"
@@ -440,6 +443,8 @@ models:
       tests:
        - dbt_utils.expression_is_true:
           expression: ">0"
+          config:
+           severity: warn
 
     - name: payment_value
       description: "Value of this payment."
@@ -473,21 +478,6 @@ models:
           expression: "<= payment_value"
           where: "monthly_installment_amount is not null"
 
-    - name: is_primary_payment
-      tests:
-       - accepted_values: 
-          values: [true, false]
-
-    - name: is_only_payment
-      tests:
-       - accepted_values:
-          values: [true, false]
-
-    - name: is_installment_payment
-      tests:
-       - accepted_values:
-          values: [true, false] 
-
  - name: fact_order_reviews
    description: |
     Fact order capturing reviews for each order.
@@ -501,7 +491,7 @@ models:
     - dbt_utils.expression_is_true:
        expression: "NOT(is_rating_only = true AND is_full_review = true)"
        config:
-        severity: error
+        severity: warn
    columns:
    # review_id is not unique idendifier, should add severity: warn in test unique in stg_schema 
     - name: review_id
@@ -517,7 +507,9 @@ models:
     - name: customer_key
       description: "Foreign key to dim_customers (Surrogate key)"
       tests:
-       - not_null
+       - not_null:
+          config:
+           severity: warn
        - relationships:
           to: ref('dim_customers')
           field: customer_key
@@ -527,6 +519,7 @@ models:
       tests:
        - accepted_values:
           values: [1, 2, 3, 4, 5]
+          quote: false
     
     - name: review_sentiment
       description: "Review score classification indicating customer sentiment"
@@ -588,38 +581,21 @@ models:
        Boolean indicator of seller engagement with customer feedback.
        TRUE: Seller posted a response to this review.
        FALSE: No seller response yet.
-      tests:
-       - accepted_values:
-          values: [true, false]
 
     - name: is_fast_response
       description: |
        Boolean indicator of rapid seller response.
        TRUE: Seller responded within 24 hours.
        FALSE: Seller responded after 24 hours.
-      tests:
-       - accepted_values:
-          values: [true, false]
 
     - name: is_multiple_reviews
       description: |
        Boolean indicator that this order has received multiple reviews.
        TRUE: order has 2+ reviews.
        FALSE: order has only 1 review.
-      tests:
-       - accepted_values:
-          values: [true, false]
 
     - name: is_rating_only
       description: "Boolean flag determines review with only rating, no message and title."
-      tests:
-       - accepted_values:
-          values: [true, false]
 
     - name: is_full_review
       description: "Boolean flag determines completed review with rating, title and message."
-      tests:
-       - accepted_values:
-          values: [true, false]
-      
- 

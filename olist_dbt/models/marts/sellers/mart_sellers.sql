@@ -22,7 +22,7 @@ WITH
     seller_item_metrics AS (
         SELECT
             ds.seller_id,
-            SUM(CASE WHEN foi.met_shipping_deadline THEN 1 ELSE 0 END)::FLOAT 
+            CAST(SUM(CASE WHEN foi.met_shipping_deadline THEN 1 ELSE 0 END) AS FLOAT64)
                 / NULLIF(COUNT(*), 0) AS met_shipping_deadline_rate
         FROM {{ ref("dim_sellers") }} ds
         JOIN {{ ref("fact_order_items") }} foi
@@ -48,7 +48,7 @@ WITH
     seller_recency AS (
         SELECT
             som.seller_id,
-            DATE_DIFF('day', som.latest_sale_date, rd.analysis_date) AS days_since_last_sale
+            TIMESTAMP_DIFF(CAST(rd.analysis_date AS TIMESTAMP), som.latest_sale_date, DAY) AS days_since_last_sale
         FROM seller_order_metrics som
         CROSS JOIN reference_date rd
     ),

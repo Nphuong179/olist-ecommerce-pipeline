@@ -2,12 +2,14 @@
 -- Purpose: Identify customer lifecycle stage and reactivation opportunities
 
 WITH median_repurchase AS (
+    SELECT median_repurchase_interval 
+    FROM (
         SELECT 
-            PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY avg_days_between_orders) AS median_repurchase_interval
+            PERCENTILE_CONT(avg_days_between_orders, 0.5) OVER() AS median_repurchase_interval
         FROM (
             SELECT
                 dc.customer_id,
-                DATE_DIFF('day', MIN(fo.order_purchase_timestamp), MAX(fo.order_purchase_timestamp))::FLOAT
+                CAST(TIMESTAMP_DIFF(MAX(fo.order_purchase_timestamp), MIN(fo.order_purchase_timestamp), DAY) AS FLOAT64)
                     / NULLIF(COUNT(fo.order_id) - 1, 0) AS avg_days_between_orders
             FROM {{ ref("dim_customers") }} dc
             JOIN {{ ref("fact_orders") }} fo
@@ -15,7 +17,8 @@ WITH median_repurchase AS (
             GROUP BY dc.customer_id
             HAVING COUNT(fo.order_id) > 1 -- Only repeat customers
         )
-    )
+    LIMIT 1)
+)
 
 SELECT
     customer_id,

@@ -42,7 +42,7 @@ SELECT
     so.order_approved_timestamp,
     so.order_delivered_carrier_timestamp,
     so.order_delivered_customer_timestamp,
-    so.order_estimated_delivery_date,
+    CAST(so.order_estimated_delivery_date AS TIMESTAMP) AS order_estimated_delivery_date,
 
     -- Measure preserve NULL for imcomplete/canceled orders
     -- NULL indicates the order didn't reach the stage when the metrics updated
@@ -69,34 +69,34 @@ SELECT
     -- Derived metrics: Time durations (in hours)
     CASE
         WHEN so.order_approved_timestamp IS NOT NULL
-        THEN DATE_DIFF('hour', so.order_purchase_timestamp, so.order_approved_timestamp)
+        THEN TIMESTAMP_DIFF(so.order_approved_timestamp, so.order_purchase_timestamp, HOUR)
     END AS hours_to_approval,
 
     CASE
         WHEN so.order_delivered_carrier_timestamp IS NOT NULL
-        THEN DATE_DIFF('hour', so.order_purchase_timestamp, so.order_delivered_carrier_timestamp)
+        THEN TIMESTAMP_DIFF(so.order_delivered_carrier_timestamp, so.order_purchase_timestamp, HOUR)
     END AS hours_to_carrier,
 
     CASE
         WHEN so.order_delivered_customer_timestamp IS NOT NULL
-        THEN DATE_DIFF('hour', so.order_purchase_timestamp, so.order_delivered_customer_timestamp)
+        THEN TIMESTAMP_DIFF(so.order_delivered_customer_timestamp, so.order_purchase_timestamp, HOUR)
     END AS hours_to_delivered,
 
     CASE
         WHEN so.order_delivered_carrier_timestamp IS NOT NULL
             AND so.order_delivered_customer_timestamp IS NOT NULL
-        THEN DATE_DIFF('hour', so.order_delivered_carrier_timestamp, so.order_delivered_customer_timestamp)
+        THEN TIMESTAMP_DIFF(so.order_delivered_customer_timestamp, so.order_delivered_carrier_timestamp, HOUR)
     END AS hours_in_transit,
 
     -- Derived metrics: Delivery performance
     CASE
         WHEN so.order_delivered_customer_timestamp IS NOT NULL
-        THEN DATE_DIFF('hour', so.order_delivered_customer_timestamp, so.order_estimated_delivery_date)
+        THEN TIMESTAMP_DIFF(CAST(so.order_estimated_delivery_date AS TIMESTAMP), so.order_delivered_customer_timestamp, HOUR)
     END AS delivered_vs_estimated,
 
     CASE
         WHEN so.order_delivered_customer_timestamp IS NOT NULL
-            AND so.order_delivered_customer_timestamp <= so.order_estimated_delivery_date
+            AND so.order_delivered_customer_timestamp <= CAST(so.order_estimated_delivery_date AS TIMESTAMP)
         THEN TRUE
         WHEN so.order_delivered_customer_timestamp IS NOT NULL
         THEN FALSE
