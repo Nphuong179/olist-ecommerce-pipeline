@@ -5,3 +5,4 @@ matplotlib
 matplotlib-venn
 google-cloud-bigquery
 google-auth
+db-dtypes
