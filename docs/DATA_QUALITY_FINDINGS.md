@@ -55,7 +55,7 @@ Two credit card payments show 0 installments, which violates business rule. Cred
 2. Add validation to reject input records with installments = 0
 3. For these 2 orders, set installments to 1 and mark them for review
 
-### 3. Invalid Delivery Timestamp
+### 3. Delivery Precede Carrier Timestamp 
 
 **Issue Summary:**
 22 orders show customer delivery happening before carrier delivery, which breaks the logical shipping timeline. A package cannot arrive at the customer before it leaves the seller.
@@ -76,7 +76,7 @@ Two credit card payments show 0 installments, which violates business rule. Cred
 2. For affected records, investigate source data to determine correct timestamp
 3. Add validation rule: `order_delivered_carrier_timestamp` must be <= `order_delivered_customer_timestamp`
 
-### 4. Invalid Timestamps from Logistics Partner Systems
+### 4. Delivery Precede Purchase Timestamp
 
 **Issue Summary:**
 100 orders show carrier handoff timestamps that are earlier than order creation, indicating the third-party logistics partner's system is recording incorrect dates.
@@ -195,44 +195,4 @@ The system calculates estimated delivery dates when customers place orders (purc
 2. Verify with customers: did these 8 orders actually arrive? Confirm delivery before recognizing revenue
 3. Add validation rule: orders cannot be marked 'delivered' without `order_delivered_customer_timestamp`
 4. Implement automated alerts when status changes to 'delivered' without corresponding timestamp
-5. For revenue accounting: flag these 8 orders as "delivery pending verification" until timestamps confirmed
-
-### 8. Orders Missing Items Due to Stock-Out Not Marked as Canceled
-
-**Issue Summary:**
-8 orders show active statuses ('created', 'shipped', 'invoiced') but have no items because products were out of stock. Customers were charged and some were verbally notified of cancellation, but order statuses were never updated in the system.
-
-**What We Found:**
-- 8 orders (0.01% of total) have no records in order items table—not even in source data (stg_order_items)
-- All 8 orders have payment records, meaning customers were charged
-- 6 orders (75%) have customer reviews; 5 of these show review_score = 1 (worst rating)
-- Review messages reveal the issue:
-  - "o PRODUTO NÃO CHEGOU ATÉ HOJE" (Product never arrived)
-  - "meu produto não chegou, prazo de entrega de 34 dias e nada" (Product didn't arrive, 34 days past delivery date)
-  - One customer states company contacted them about out-of-stock and order cancellation
-- Despite cancellations, order_status remains 'created' (5), 'shipped' (1), or 'invoiced' (2)
-- Expected status should be 'unavailable' or 'canceled'
-
-**Business Impact:**
-- **Customer Trust:** Customers charged for products they never received, destroying marketplace credibility
-- **Financial Risk:** Customers may have been charged without refunds if status wasn't updated
-- **Revenue Recognition:** Cannot determine if revenue should be recognized or reversed for these orders
-- **Customer Service:** Support team sees orders as active when they're actually failed/canceled
-- **Reputation Damage:** Multiple 1-star reviews directly citing non-delivery harm seller and platform ratings
-- **Compliance Risk:** Charging customers without delivering products may violate consumer protection laws
-
-**Possible Cause:**
-- **Manual Process Failure:** Staff contacted customers to cancel orders but forgot to update order status in system
-- **Insufficient Inventory Checks:** Orders accepted and charged before inventory validation
-- **Missing Order Cancellation Workflow:** No automated process to update status when items can't be fulfilled
-- **System Integration Gap:** Cancellation handled outside main order system (phone/email) without triggering status update
-- **Incomplete Stock-Out Handling:** System detected out-of-stock but only prevented item creation, didn't update order status
-
-**What to Do:**
-1. **Immediate:** Verify if these 8 customers received refunds. If not, process refunds urgently
-2. Update order_status for these 8 orders to 'unavailable' or 'canceled' to reflect reality
-3. Implement automated workflow: when order has no items after X hours, auto-update status to 'unavailable'
-4. Add validation rule: orders with status 'created'/'shipped'/'invoiced' MUST have items in order_items table
-5. Create alert system: flag orders with payments but no items for immediate investigation
-6. Review customer service procedures: ensure order cancellations always update system status, not just verbal notification
-7. Consider customer outreach: apologize to affected customers and confirm refund status
+5. For revenue accounting: flag these 8 orders as "delivery pending verification" until timestamp
