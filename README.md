@@ -16,51 +16,35 @@ Built with **dbt + DuckDB** for data transformations and **Streamlit + Plotly** 
 
 ## Project Architecture
 
-```
-olist_elt/
-├── data/raw/                              # 9 source CSV files (Olist dataset)
-├── docs/
-│   └── DATA_QUALITY_FINDINGS.md           # 7 investigated data quality issues
-├── scripts/
-│   └── load_data.py                       # CSV → DuckDB ingestion
-│
-├── olist_dbt/
-│   ├── models/
-│   │   ├── staging/                       # Layer 1: Cleaning & standardization
-│   │   ├── dims/                          # Layer 2: Dimensional models
-│   │   │   ├── dim_customers.sql
-│   │   │   ├── dim_sellers.sql
-│   │   │   ├── dim_products.sql
-│   │   │   └── dim_schema.yml
-│   │   │
-│   │   ├── facts/                         # Layer 3: Transactional facts
-│   │   │   ├── fact_orders.sql
-│   │   │   ├── fact_order_items.sql
-│   │   │   ├── fact_order_payments.sql
-│   │   │   ├── fact_order_reviews.sql
-│   │   │   └── fact_schema.yml
-│   │   │
-│   │   └── marts/customers/               # Layer 4: Business analytics
-│   │       ├── mart_customers_base.sql
-│   │       ├── mart_customer_lifecycle.sql
-│   │       ├── mart_customer_value_growth.sql
-│   │       └── mart_customer_payment.sql
-│   │
-│   ├── dashboard/
-│   │   ├── streamlit_app.py               # App entry point & navigation
-│   │   ├── pages/
-│   │   │   ├── overview.py                # Customer lifecycle distribution
-│   │   │   ├── failed_acquisition.py      # Orders never delivered
-│   │   │   ├── at_risk.py                 # Identifiable friction vs silent churn
-│   │   │   ├── proactive_retention.py     # Conversion window & value targeting
-│   │   │   └── data_quality.py            # Pipeline health monitoring
-│   │   └── utils/
-│   │       ├── db_connection.py           # DuckDB connection with caching
-│   │       └── styles.py                  # Design system & reusable components
-│   │
-│   └── dbt_project.yml
-│
-└── README.md
+```mermaid
+flowchart TD
+    ROOT{{olist_elt/}}:::root
+
+    ROOT --> DATA([data/raw/\n9 source CSV files]):::infra
+    ROOT --> DOCS([docs/\nDATA_QUALITY_FINDINGS.md\nMIGRATION_DUCKDB_TO_BIGQUERY.md]):::infra
+    ROOT --> DBT([olist_dbt/]):::infra
+    ROOT --> SCRIPTS([scripts/\nload_data.py]):::infra
+
+    DBT --> MODELS[models/]:::folder
+    DBT --> DASH[dashboard/]:::folder
+
+    MODELS --> STG(staging/\n8 stg models + sources.yml):::model
+    MODELS --> DIMS(dims/\ndim_customers\ndim_sellers\ndim_products):::model
+    MODELS --> FACTS(facts/\nfact_orders\nfact_order_items\nfact_order_payments\nfact_order_reviews):::model
+    MODELS --> MARTS(marts/):::folder
+
+    MARTS --> MC(customers/\nmart_customers_base\nmart_customer_lifecycle\nmart_customer_value_growth\nmart_customer_payment):::model
+    MARTS --> MS(sellers/\nmart_sellers):::model
+    MARTS --> MO(marketplace_ops/\nmart_order_fulfillment\nmart_order_scaling\nmart_order_status_stages):::model
+
+    DASH --> PAGES(pages/\noverview · failed_acquisition\nat_risk · proactive_retention\ndata_quality):::dashboard
+    DASH --> UTILS(utils/\ndb_connection · styles):::dashboard
+
+    classDef root       fill:#2A7B88,stroke:#1a5c66,color:#fff,font-weight:bold
+    classDef infra      fill:#f5f5f5,stroke:#aaaaaa,color:#333
+    classDef folder     fill:#2A7B88,stroke:#1a5c66,color:#fff
+    classDef model      fill:#E8F4F6,stroke:#2A7B88,color:#1a5c66
+    classDef dashboard  fill:#FFF4E6,stroke:#E8A855,color:#7a4f10
 ```
 
 ## Data Architecture
