@@ -2,7 +2,7 @@
 
 An end-to-end ELT pipeline transforming Brazilian e-commerce data into a dimensional data warehouse, paired with an interactive analytics dashboard that investigates a critical business problem: **why do over 94% of customers never return after their first purchase?**
 
-Built with **dbt + DuckDB** for data transformations and **Streamlit + Plotly** for interactive visualization.
+Built with **dbt + BigQuery** for data transformations and **Streamlit + Plotly** for interactive visualization.
 
 ## Technology Stack
 
@@ -12,7 +12,7 @@ Built with **dbt + DuckDB** for data transformations and **Streamlit + Plotly** 
 | Database | BigQuery | Cloud analytical warehouse |
 | Analytical Dashboard | Streamlit + Plotly | Interactive visualization and analysis |
 | Dashboard (BI) | Looker Studio | Public-facing operational dashboard |
-| Testing | dbt-utils | Advanced data quality validation (180 tests) |
+| Testing | dbt-utils | Advanced data quality validation (162 tests) |
 | Version Control | Git / GitHub | Source control and portfolio publication |
 
 > **Migration note:** The pipeline was originally built on DuckDB (local) 
