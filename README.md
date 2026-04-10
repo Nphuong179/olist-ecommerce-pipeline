@@ -9,10 +9,15 @@ Built with **dbt + DuckDB** for data transformations and **Streamlit + Plotly** 
 | Component | Technology | Purpose |
 |-----------|-----------|---------|
 | Transformation | dbt (data build tool) | SQL-based modeling, testing, documentation |
-| Database | DuckDB | Embedded analytical database, zero infrastructure |
-| Dashboard | Streamlit + Plotly | Interactive visualization and analysis |
+| Database | BigQuery | Cloud analytical warehouse |
+| Analytical Dashboard | Streamlit + Plotly | Interactive visualization and analysis |
+| Dashboard (BI) | Looker Studio | Public-facing operational dashboard |
 | Testing | dbt-utils | Advanced data quality validation (180 tests) |
 | Version Control | Git / GitHub | Source control and portfolio publication |
+
+> **Migration note:** The pipeline was originally built on DuckDB (local) 
+> and migrated to BigQuery in April 2026. 
+> See [`docs/MIGRATION_DUCKDB_TO_BIGQUERY.md`](docs/MIGRATION_DUCKDB_TO_BIGQUERY.md) for full details.
 
 ## Project Architecture
 
@@ -54,15 +59,19 @@ The pipeline follows **Kimball dimensional modeling** with four layers:
 - **Staging (8 models)** - Type casting, renaming, null handling. No business logic.
 - **Dimensions (3 models)** - Type 2 SCDs for customers and sellers (address history with validity periods), plus a product dimension with price metrics.
 - **Facts (4 models)** - Order, item, payment, and review grains. All joined to dimensions via surrogate keys with point-in-time matching.
-- **Marts (4 models)** - 30+ aggregated customer metrics feeding lifecycle classification, issue flagging, and payment segmentation.
+- **Marts (7 models)** - 30+ aggregated customer metrics feeding lifecycle classification, issue flagging, and payment segmentation.
 
 ## Dashboard
 
-[Five-page Streamlit + Plotly dashboard](https://olist-customer-analytics.streamlit.app) structured as a guided analytical narrative - see demo below.
+### Customer Analytics (Streamlit + Plotly)
+[Five-page dashboard](https://olist-customer-analytics.streamlit.app) structured as a guided analytical narrative - see demo below.
+
+### Marketplace Operations (Looker Studio)
+[Live dashboard](https://lookerstudio.google.com/reporting/b93c68d1-45ca-4498-94df-e1941e025588) - covers order fulfillment performance, order status stages.
 
 ## Data Quality
 
-The pipeline executes **180 dbt tests** across all layers. Seven data quality issues were investigated and documented in [`docs/DATA_QUALITY_FINDINGS.md`](docs/DATA_QUALITY_FINDINGS.md):
+The pipeline executes **162 dbt tests** across all layers. Seven data quality issues were investigated and documented in [`docs/DATA_QUALITY_FINDINGS.md`](docs/DATA_QUALITY_FINDINGS.md):
 
 Each finding includes root cause analysis, business impact assessment, and recommended remediation steps.
 
@@ -77,7 +86,6 @@ Each finding includes root cause analysis, business impact assessment, and recom
 ## What Could Be Improved?
 - **Geolocation + Freight Cost Analysis** - The At-Risk page already flags has_freight_burden customers, but it's just a flag without deeper investigation. The geolocation dataset would answer why freight is high (distance between seller and customer) and propose something actionable (recommend closer seller). This is the most natural extension because it fills a gap that already exists in the analysis.
 - **Seller Dashboard Page** - Right now the analysis shows "seller accountability: X orders" as an aggregate number, but it cannot answer "which sellers specifically?". The built mart_sellers could trace poor customer experience, which is exactly what the Operational Failures tab hints but cannot currently deliver.
-- **Cloud platform replacing DuckDB** - Migrate the analytical warehouse from local DuckDB to a cloud platform (BigQuery) to demonstrate cloud-based dbt workflows, manage access controls.
 
 ## Dataset
 
