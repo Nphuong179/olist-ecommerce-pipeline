@@ -35,7 +35,10 @@ WITH
     seller_address_history AS (
     -- Adding validity periods
         SELECT
-            *,
+            seller_id,
+            zip_code_prefix,
+            city,
+            state,
             ROW_NUMBER() OVER(PARTITION BY seller_id ORDER BY first_seen_date) AS address_sequence,
             LEAD(first_seen_date) OVER(PARTITION BY seller_id ORDER BY first_seen_date) AS next_address_date
         FROM seller_addresses
